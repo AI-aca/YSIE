@@ -1239,7 +1239,21 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
   // 동적 질문 바인딩 (학교별 맞춤 문항 연동)
   const schoolMap = window.SCHOOL_QUESTIONS_MAP || [];
   const studentSchool = (student.targetSchool || '').trim();
-  const matchedSchool = schoolMap.find(s => s.name === studentSchool);
+  const studentYear = (student.admissionYear || '').trim();
+  
+  // 1순위: 학교명과 학년도가 모두 일치하는 세트
+  let matchedSchool = schoolMap.find(s => s.name === studentSchool && (s.admissionYear || '').trim() === studentYear);
+  
+  // 2순위: 정확히 일치하는 학년도가 없으면, 동일한 학교명 중 학년도가 비어있는(기본) 세트 탐색
+  if (!matchedSchool) {
+    matchedSchool = schoolMap.find(s => s.name === studentSchool && !(s.admissionYear || '').trim());
+  }
+  
+  // 3순위: 위 조건에 모두 실패 시 이름만 일치하는 첫 번째 항목으로 폴백
+  if (!matchedSchool) {
+    matchedSchool = schoolMap.find(s => s.name === studentSchool);
+  }
+  
   const questions = (matchedSchool && matchedSchool.questions && matchedSchool.questions.length > 0)
     ? matchedSchool.questions
     : [{ label: '문항 1', content: '자기소개서 문항이 설정되지 않았습니다.', limit: '' }];
@@ -2913,6 +2927,8 @@ function bindEventHandlers() {
       const schoolBlocks = document.querySelectorAll('.school-setting-block');
       schoolBlocks.forEach(block => {
         const sName = block.querySelector('.school-name-input').value.trim();
+        const sYearInput = block.querySelector('.school-year-input');
+        const sYear = sYearInput ? sYearInput.value.trim() : '';
         const includeSpaces = block.querySelector('.school-include-spaces').checked;
         if (sName) {
           const qItems = block.querySelectorAll('.q-item');
@@ -2937,7 +2953,7 @@ function bindEventHandlers() {
               questions.push({ label, content, limit, details });
              }
           });
-          schools.push({ name: sName, includeSpaces, questions });
+          schools.push({ name: sName, admissionYear: sYear, includeSpaces, questions });
         }
       });
       
@@ -2957,7 +2973,7 @@ function bindEventHandlers() {
           sessionStorage.setItem('user_pw', ACTIVE_ADMIN_PASSWORD);
           
           window.SCHOOL_QUESTIONS_MAP = schools;
-          window.targetSchoolsList = schools.map(s => s.name);
+          window.targetSchoolsList = Array.from(new Set(schools.map(s => s.name)));
           updateTargetSchoolDropdowns(window.targetSchoolsList);
           renderSettingsSchools();
         } else {
@@ -3108,7 +3124,7 @@ async function loadSettingsForm() {
         ] }
       ];
     }
-    window.targetSchoolsList = window.SCHOOL_QUESTIONS_MAP.map(s => s.name);
+    window.targetSchoolsList = Array.from(new Set(window.SCHOOL_QUESTIONS_MAP.map(s => s.name)));
     
     renderSettingsSchools();
     
@@ -3137,7 +3153,7 @@ async function loadSettingsForm() {
         { label: '문항 2', content: '인성영역(봉사, 협력, 배려 등) 활동 경험을 기술하시오.', limit: '300' }
       ] }
     ];
-    window.targetSchoolsList = window.SCHOOL_QUESTIONS_MAP.map(s => s.name);
+    window.targetSchoolsList = Array.from(new Set(window.SCHOOL_QUESTIONS_MAP.map(s => s.name)));
     renderSettingsSchools();
     updateTargetSchoolDropdowns(window.targetSchoolsList);
   }
@@ -3196,7 +3212,10 @@ function renderSettingsSchools() {
     header.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px; margin-right: auto;">
         <label style="font-size: 14px; color:var(--text-muted); white-space:nowrap;">학교명</label>
-        <input type="text" class="form-control school-name-input" value="${school.name}" style="width: 220px; font-size: 16px; font-weight: bold; color: #38bdf8; background-color: rgba(56, 189, 248, 0.05);">
+        <input type="text" class="form-control school-name-input" value="${school.name}" style="width: 180px; font-size: 16px; font-weight: bold; color: #38bdf8; background-color: rgba(56, 189, 248, 0.05);">
+        
+        <label style="font-size: 14px; color:var(--text-muted); white-space:nowrap; margin-left: 5px;">적용 학년도</label>
+        <input type="text" class="form-control school-year-input" value="${school.admissionYear || ''}" placeholder="예: 2027" style="width: 80px; font-size: 14px; color: #facc15; background-color: rgba(250, 204, 21, 0.05);">
       </div>
       
       <div style="display:flex; align-items:center; margin-right: 15px;">

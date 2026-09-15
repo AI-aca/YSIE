@@ -1442,7 +1442,11 @@ async function getPersonalStatementHistory(payload) {
 
         // 기존 현재 학교(targetSchool) qMap 및 currentStateMap 초기화 로직 유지
         if (targetSchool) {
-          const matchedSchool = schoolsData.find(s => s.name === targetSchool);
+          const studentYear = (student.admission_year || '').trim();
+          let matchedSchool = schoolsData.find(s => s.name === targetSchool && (s.admissionYear || '').trim() === studentYear);
+          if (!matchedSchool) matchedSchool = schoolsData.find(s => s.name === targetSchool && !(s.admissionYear || '').trim());
+          if (!matchedSchool) matchedSchool = schoolsData.find(s => s.name === targetSchool);
+          
           if (matchedSchool && matchedSchool.questions) {
             matchedSchool.questions.forEach(q => {
               const qVal = String(q.label);
