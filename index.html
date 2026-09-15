@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>외고·국제고 합격을 위한 관리 사이트</title>
+  <!-- CSS 스타일 시트 연동 -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Supabase 라이브러리 및 PDF.js 캔버스 뷰어 추가 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    document.write('<script src="backend_logic.js?v=' + new Date().getTime() + '"></scr' + 'ipt>');
+  </script>
+  <style>
+    .pulse-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #10b981;
+      margin-right: 8px;
+      box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+      animation: pulse-neon 1.5s infinite;
+    }
+    @keyframes pulse-neon {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- 전역 통신 로딩 인디케이터 -->
+  <div id="global-loader-overlay" class="global-loader-overlay hidden">
+    <div class="spinner-container">
+      <div class="loader-spinner"></div>
+      <div class="loader-percentage" id="loader-percentage-text">0%</div>
+      <div class="loader-text">서버와 통신 중입니다...</div>
+    </div>
+  </div>
+
+  <div id="app-layout" style="visibility: hidden;">
+    
+    <!-- 1. 좌측 사이드바 -->
+    <aside id="sidebar">
+      <div class="logo-area">
+        <h1>2027 외고·국제고</h1>
+        <p>외고·국제고 합격을 위한 관리 사이트</p>
+      </div>
+      
+      <!-- 학생 등록 (교사용 전용 강조 액션) -->
+      <div class="register-btn-wrap" id="sidebar-register-area">
+        <button class="btn-register-primary" id="btn-open-register">
+          <i class="fa-solid fa-user-plus"></i> 학생 등록 및 관리
+        </button>
+      </div>
+      
+      <!-- 8대 메뉴 구성 -->
+      <ul class="menu-list">
+        <li class="menu-item active" data-menu="dashboard">
+          <a id="menu-dashboard"><i class="fa-solid fa-chart-line"></i> 초기 화면</a>
+        </li>
+        <li class="menu-item" data-menu="info">
+          <a id="menu-info"><i class="fa-solid fa-address-book"></i> 학생정보</a>
+        </li>
+        <li class="menu-item" data-menu="ps">
+          <a id="menu-ps"><i class="fa-solid fa-file-pen"></i> 자기소개서</a>
+        </li>
+        <li class="menu-item" data-menu="record">
+          <a id="menu-record"><i class="fa-solid fa-file-invoice"></i> 생활기록부</a>
+        </li>
+        <li class="menu-item" data-menu="interview">
+          <a id="menu-interview"><i class="fa-solid fa-comments"></i> 예상질문 연습</a>
+        </li>
+        <li class="menu-item" data-menu="guide">
+          <a id="menu-guide"><i class="fa-solid fa-book-open"></i> 입학요강</a>
+        </li>
+        <li class="menu-item" data-menu="exam">
+          <a id="menu-exam"><i class="fa-solid fa-file-pdf"></i> 기출문제</a>
+        </li>
+        <li class="menu-item" data-menu="settings">
+          <a id="menu-settings"><i class="fa-solid fa-sliders"></i> 설정</a>
+        </li>
+        <li class="menu-item" data-menu="user-guide">
+          <a id="menu-user-guide"><i class="fa-solid fa-circle-info"></i> 사용안내</a>
+        </li>
+      </ul>
+      
+      <!-- 로그인 및 권한 프로필 영역 (최하단) -->
+      <div class="profile-section">
+        <div class="profile-info">
+          <div class="profile-avatar" id="user-avatar">G</div>
+          <div class="profile-details">
+            <p class="role" id="current-role-display">게스트 모드</p>
+            <p class="status" id="current-user-status">조회 권한 없음</p>
+          </div>
+        </div>
+        <button class="btn-login-trigger" id="btn-login-modal">로그인 및 권한인증</button>
+      </div>
+    </aside>
+    
+    <!-- 2. 우측 메인 콘텐츠 영역 -->
+    <main id="main-content">
+
+      
+      <div class="header-title-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+        <div>
+          <h2 id="content-title">초기 화면 (대시보드)</h2>
+          <p class="subtitle" id="content-subtitle">외고·국제고 지원자 합격 현황 대시보드</p>
+        </div>
+        
+        <!-- 우측 액션 및 제어 영역 통합 -->
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div class="header-actions" id="main-header-actions" style="margin: 0; padding: 0;">
+            <!-- 동적 액션 버튼 컨테이너 -->
+          </div>
+          <div class="table-controls" style="margin: 0; padding: 0; display: flex; align-items: center; gap: 12px;">
+            <div class="search-input-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <label for="search-student" style="display:none;">학생명 또는 학교 검색</label>
+              <input type="text" id="search-student" placeholder="학생명 또는 학교 검색...">
+            </div>
+            <div class="filter-actions" id="table-filter-area" style="display: flex; align-items: center; gap: 8px;">
+              <label id="wrapper-hide-hidden" style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); cursor: pointer; margin-right: 8px;">
+                <input type="checkbox" id="checkbox-hide-hidden" checked> 숨김학생 감추기
+              </label>
+              <select id="filter-admission-year" class="form-control" style="width: auto; padding: 4px 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                <option value="전체">학년도 전체</option>
+              </select>
+              <select id="filter-target-school" class="form-control" style="width: auto; padding: 4px 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                <option value="전체">모든 지원학교</option>
+              </select>
+              <select id="filter-ps-status" class="form-control" style="width: auto; display: none; padding: 4px 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                <option value="전체">모든 제출상태</option>
+                <option value="작성중">작성중</option>
+                <option value="최종제출">최종제출</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 학생 권한 경고 배너 (학생 접속 시에만 동적 활성화) -->
+      <div id="student-warning-banner" class="student-warning-alert" style="display: none; margin-bottom: 24px;">
+        <div class="alert-content">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <strong>[기기 권장 및 보안 경고]</strong> 본 시스템은 PC 크롬(Chrome) 브라우저 환경에 최적화되어 있습니다. 모바일 또는 태블릿 기기에서의 자소서 작성은 레이아웃 깨짐이나 오작동을 유발할 수 있으므로 지양해 주십시오. 공용 PC 사용 후에는 개인 정보 및 합격 전략 노출을 방지하기 위해 <strong>반드시 브라우저를 완전히 종료</strong>해 주시기 바랍니다.
+          </div>
+        </div>
+      </div>
+      <!-- 메인 데이터 테이블 (가로 스크롤 방지 및 컬럼 동적 치환) -->
+      <div class="table-container">
+        <!-- 생기부 PDF 업로드를 위한 숨김 파일 인풋 -->
+        <input type="file" id="student-record-pdf-input" accept="application/pdf" style="display: none;">
+        <table class="main-data-table" id="student-data-table">
+          <thead>
+            <tr id="table-header-row">
+              <!-- script.js에 의해 동적으로 헤더 채워짐 -->
+            </tr>
+          </thead>
+          <tbody id="student-table-body">
+            <!-- 동적 학생 데이터 렌더링 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- 생기부 상세 점수 동적 아코디언 컨테이너 제거됨 (모달로 통합) -->
+      
+      <!-- 설정 패널 (기본 숨김) -->
+      <div id="settings-panel" style="display: none;">
+        <h3><i class="fa-solid fa-sliders"></i> 시스템 환경 설정</h3>
+        
+        <!-- 비밀번호 설정 그룹 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 0;">
+            <h3 style="white-space: nowrap;">비밀번호 설정</h3>
+            <button class="btn-action" id="btn-save-settings-pw" style="padding: 4px 10px; font-size: 14px; margin-right: 15px; white-space: nowrap;"><i class="fa-solid fa-floppy-disk"></i> 비번 저장</button>
+            <div style="display: flex; gap: 10px; flex: 1; align-items: center;">
+              <label for="settings-pw-teacher" style="font-size: 13px; color: var(--text-muted); white-space: nowrap; margin: 0;">교사(일반) 비밀번호</label>
+              <input type="password" id="settings-pw-teacher" class="form-control" placeholder="교사 비밀번호 입력" style="flex: 1;">
+              <label for="settings-pw-admin" style="font-size: 13px; color: var(--text-muted); white-space: nowrap; margin: 0; margin-left: 10px;">관리자 비밀번호</label>
+              <input type="password" id="settings-pw-admin" class="form-control" placeholder="관리자 비밀번호 입력" style="flex: 1;">
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <!-- API 연동 설정 그룹 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 0;">
+            <h3 style="white-space: nowrap;">Gemini API (AI 첨삭/평가)</h3>
+            <button class="btn-action" id="btn-save-settings-api" style="padding: 4px 10px; font-size: 14px; margin-right: 15px; white-space: nowrap;"><i class="fa-solid fa-floppy-disk"></i> API키 저장</button>
+            <div style="display: flex; gap: 10px; flex: 1; align-items: center;">
+              <label for="settings-gemini-key" style="font-size: 13px; color: var(--text-muted); white-space: nowrap; margin: 0;">Gemini API Key</label>
+              <input type="password" id="settings-gemini-key" class="form-control" placeholder="Gemini API Key 입력" style="flex: 1;">
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 10px;">
+            <h3 style="white-space: nowrap;">학교별 자소서 문항 및 글자수</h3>
+            <button class="btn-action" id="btn-save-settings-school" style="padding: 4px 10px; font-size: 14px;"><i class="fa-solid fa-floppy-disk"></i> 학교별 문항 저장</button>
+            <div style="flex: 1; text-align: right;">
+              <button class="btn-action" id="btn-add-school" style="padding: 6px 12px; font-size: 14px; background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학교 추가하기</button>
+            </div>
+          </div>
+          <div id="settings-school-list" style="display: block; margin-top: 10px;">
+            <!-- script.js에서 동적 주입 -->
+          </div>
+        </div>
+        
+        <hr>
+        <!-- 센터명 리스트 관리 설정 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 0;">
+            <h3 style="white-space: nowrap;">센터명 리스트 관리</h3>
+            <button class="btn-action" id="btn-save-settings-centers" style="padding: 4px 10px; font-size: 14px; margin-right: 15px; white-space: nowrap;"><i class="fa-solid fa-floppy-disk"></i> 센터명 저장</button>
+            <div style="display: flex; gap: 10px; flex: 1; align-items: center;">
+              <label for="settings-centers-list" style="font-size: 13px; color: var(--text-muted); white-space: nowrap; margin: 0;">콤마(,)로 구분하여 입력</label>
+              <textarea id="settings-centers-list" class="form-control" placeholder="예: 대치본원, 서초본원, 송파본원" style="flex: 1; resize: none; height: 38px; padding-top: 8px; overflow: hidden;"></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        <!-- 데이터베이스 백업 및 관리 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 0;">
+            <h3 style="white-space: nowrap;"><i class="fa-solid fa-database"></i> 데이터베이스 백업 관리</h3>
+            <button class="btn-action" style="padding: 6px 12px; font-size: 14px; background-color: var(--color-danger);" onclick="verifyBackupPassword()">전체 테이블 CSV 백업창 열기</button>
+            <div style="display: flex; gap: 10px; flex: 1; align-items: center; justify-content: flex-end;">
+              <span style="font-size: 13px; color: var(--text-muted);">※ 안전한 브라우저 변환을 통해 대용량 테이블 데이터를 개별 파싱하여 추출합니다.</span>
+            </div>
+          </div>
+        </div>
+
+          <!-- 구글 연동 완전 삭제됨 -->
+      </div>
+      
+      <!-- 사용안내 패널 -->
+      <div id="user-guide-panel" style="display: none;" class="view-panel">
+
+        <div id="user-guide-content" class="guide-scroll-container" style="margin-top: 15px;">
+          <!-- script.js에 의해 권한별 동적 HTML 주입 -->
+        </div>
+      </div>
+      
+      <!-- PDF 라이브러리 (입학요강/기출문제 뷰어) 패널 -->
+      <div id="pdf-library-panel" style="display: none; height: calc(100vh - 120px); gap: 20px;" class="view-panel">
+        <!-- 좌측 파일 네비게이션 (너비 1.5배 확장: 250px -> 375px) -->
+        <div class="pdf-sidebar" style="width: 375px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0;" id="pdf-library-title">문서 목록</h4>
+            <!-- 업로드를 위한 숨김 인풋 -->
+            <label for="general-pdf-input" style="display:none;">파일 업로드</label>
+            <input type="file" id="general-pdf-input" accept="application/pdf" multiple style="display: none;">
+            <!-- 업로드 버튼 숨김 해제 -->
+            <button class="btn-action" style="padding: 4px 8px; font-size: 14px; background-color: var(--color-primary); cursor: pointer;" id="btn-upload-pdf">
+              <i class="fa-solid fa-upload"></i> 업로드
+            </button>
+          </div>
+          <!-- 필터링(솔팅) UI 임시 숨김 처리 -->
+          <div id="pdf-filter-container" style="display: none; padding: 12px 16px; border-bottom: 1px solid var(--border-color); gap: 8px; flex-direction: column;">
+              <select id="pdf-year-filter" class="form-control" style="padding: 6px; font-size: 14px;"><option value="전체">연도 전체</option></select>
+              <select id="pdf-school-filter" class="form-control" style="padding: 6px; font-size: 14px;"><option value="전체">학교 전체</option></select>
+          </div>
+          <div id="pdf-file-list" style="flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <!-- 동적 파일 리스트 주입 -->
+            <div class="text-muted" style="text-align: center; margin-top: 20px; font-size: 14px;">파일을 불러오는 중...</div>
+          </div>
+        </div>
+        
+        <!-- 우측 뷰어 (제목 높이까지 확장) -->
+        <div class="pdf-viewer-wrap" style="flex: 1; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; display: flex; align-items: center; justify-content: center; margin-top: -85px; height: calc(100% + 85px); position: relative;">
+          <!-- 로딩 화면 (초기엔 숨김) -->
+          <div id="pdf-viewer-loader" style="display: none; position: absolute; inset: 0; background: var(--bg-card); z-index: 10; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="spinner" style="width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
+            <p class="text-muted" style="font-size: 14px;">문서를 불러오는 중입니다...</p>
+          </div>
+          <iframe id="pdf-main-iframe" src="" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
+          <div id="pdf-viewer-placeholder" class="text-muted" style="text-align: center;">
+            <i class="fa-regular fa-file-pdf" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+            <p>좌측 목록에서 문서를 선택해주세요.</p>
+          </div>
+        </div>
+      </div>
+      
+    </main>
+    
+  </div>
+
+  <!-- ==================================================================================
+   * 팝업 모달 창 모음
+   * ================================================================================== -->
+
+  <!-- 1. 권한 인증 로그인 모달 -->
+  <div class="modal-overlay" id="modal-login">
+    <div class="modal-container" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>로그인 권한 인증</h3>
+      </div>
+      <div class="modal-body">
+        <!-- 로그인 모달 내 권장 환경 및 보안 경고 문구 추가 -->
+        <div class="login-warning-box">
+          <i class="fa-solid fa-shield-halved"></i> <strong>접속 및 보안 안내</strong>
+          <ul style="margin: 5px 0 0 15px; padding: 0; list-style-type: disc;">
+            <li>본 시스템은 <strong>PC 크롬 브라우저</strong>에 최적화되어 있습니다. (모바일/태블릿 등에서는 화면이 깨지거나 일부 기능이 오작동할 수 있습니다.)</li>
+            <li>개인정보 및 합격 전략 데이터 보호를 위해 사용 후에는 <strong>반드시 브라우저를 완전 종료</strong>하여 주십시오.</li>
+          </ul>
+        </div>
+        <div class="form-group">
+          <label for="login-password">인증 패스워드</label>
+          <input type="password" id="login-password" placeholder="비밀번호를 입력하십시오.">
+        </div>
+        <div id="login-error-msg" style="color: var(--color-danger); font-size: 14px; margin-top: 4px; display: none;">
+          비밀번호가 올바르지 않습니다.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action" id="btn-submit-login" style="width: 100%;">인증하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 신규 학생 등록 모달 -->
+  <div class="modal-overlay" id="modal-register">
+    <div class="modal-container" style="max-width: 600px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <h3 id="register-modal-title" style="margin: 0;">학생 정보 관리</h3>
+          <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-muted);">
+            <input type="checkbox" id="reg-is-reference"> 참고용 학생
+          </label>
+        </div>
+        <button class="btn-close" id="btn-close-register-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- 삭제됨: 등록/수정 탭 및 드롭다운 (디자인 롤백) -->
+
+        <div class="form-grid-2col" id="reg-form-fields">
+          <div class="form-group">
+            <label for="reg-center">센터명 <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <select id="reg-center">
+              <option value="">센터 선택</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reg-admission-year">학년도 (입학년도) <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <select id="reg-admission-year">
+              <!-- JS dynamically fills -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reg-name">학생명 <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <input type="text" id="reg-name" placeholder="학생 실명">
+          </div>
+          <div class="form-group">
+            <label for="reg-school">현재 학교 <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <input type="text" id="reg-school" placeholder="예: 가좌중학교">
+          </div>
+          <div class="form-group">
+            <label for="reg-target-school">지원 예정 학교 <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <select id="reg-target-school">
+              <option value="">학교 선택</option>
+              <option value="세종국제고">세종국제고</option>
+              <option value="대전외고">대전외고</option>
+              <option value="충남외고">충남외고</option>
+              <option value="경기외고">경기외고</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reg-parent-phone">학부모 연락처 <span style="color: var(--color-danger); font-size: 0.85em; font-weight: normal;">(필수)</span></label>
+            <input type="text" id="reg-parent-phone" placeholder="010-0000-0000">
+          </div>
+          <div class="form-group">
+            <label for="reg-student-phone">학생 연락처</label>
+            <input type="text" id="reg-student-phone" placeholder="010-0000-0000">
+          </div>
+          <div class="form-group">
+            <label for="reg-teacher">담당 강사 / 담당자</label>
+            <input type="text" id="reg-teacher" placeholder="선생님 성함">
+          </div>
+        </div>
+
+        <div id="delete-btn-group" style="display: none; justify-content: flex-end; margin-top: 20px; gap: 10px;">
+          <button class="btn-action" id="btn-hard-delete-student" style="background-color: var(--color-danger);"><i class="fa-solid fa-trash-can"></i> 영구 완전 삭제</button>
+          <button class="btn-action" id="btn-toggle-hidden-student" style="background-color: #64748b; color: #fff;"><i class="fa-solid fa-eye-slash"></i> <span>숨김 처리</span></button>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-cancel-register">취소</button>
+        <button class="btn-action" id="btn-submit-register">등록 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 자기소개서 편집 및 피드백 (3탭 롤백 지원 모달) -->
+  <div class="modal-overlay" id="modal-ps-editor">
+    <div class="modal-container" style="max-width: 95vw; width: 100%; max-height: 95vh; height: 95vh;">
+      <div class="modal-header">
+        <h3 id="ps-modal-title">자기소개서 첨삭 및 편집기</h3>
+        <div class="ps-control-bar" style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; width: 100%; max-width: 600px; align-items: center;">
+          <span id="ps-school-name" style="display:none;"></span>
+          <div style="position: relative; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <span style="color: #10b981; font-size: 16px; font-weight: bold; white-space: nowrap; display: flex; align-items: center;">
+              <span class="pulse-dot"></span> 문항을 선택해 주세요
+            </span>
+            <select class="ps-selector" id="ps-question-selector" style="font-size: 16px; background-color: #1e293b; color: #f8fafc; font-weight: 700; border: 2px solid #10b981; outline: none; border-radius: 4px; padding: 4px; width: 100%; max-width: 230px;">
+              <option value="1">자기소개서 문항 1</option>
+              <option value="2">자기소개서 문항 2</option>
+              <option value="3">자기소개서 문항 3</option>
+              <option value="4">자기소개서 문항 4</option>
+            </select>
+          </div>
+        </div>
+        <div style="position: absolute; right: 50px; display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--text-muted); font-size: 14px; white-space: nowrap;">이 문항의 과거버전:</span>
+          <select id="ps-history-selector" class="form-control" style="min-width: 200px; width: auto; padding: 4px 8px; font-size: 14px; background: #1e293b; color: #f8fafc; border: 1px solid var(--border-color); border-radius: 4px;">
+            <option value="" style="background-color: #1e293b; color: #f8fafc;">과거 버전 선택</option>
+          </select>
+          
+        </div>
+        <button class="btn-close" id="btn-close-ps-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
+        
+        <!-- 경고 알럿 (제출 잠금 경고용) -->
+        <div class="danger-warning-alert" id="ps-lock-warning-alert" style="display: none;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <strong>[최종 제출 완료]</strong> 본 자기소개서는 최종 제출되었습니다. 더 이상 수정할 수 없으며 저장하기 버튼이 숨김 처리되었습니다. 수정하려면 관리자 비밀번호를 통해 반려(잠금해제)를 요청하십시오.
+          </div>
+        </div>
+        
+        <div class="ps-editor-grid" style="grid-template-columns: 1fr 1fr 1fr; flex: 1; min-height: 0;">
+          <!-- 좌측 윈도우(상하): 메모장 및 AI 체크리스트 -->
+          <div class="ps-pane-leftmost" style="display: flex; flex-direction: column; min-width: 0; min-height: 0;">
+
+            <div class="checklist-area" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0;">항목별 체크리스트 확인하기</h4>
+                <div style="display: flex; gap: 5px;">
+                  <button class="btn-action" id="btn-reset-ai-checklist" style="background-color: #dc3545; padding: 2px 8px; font-size: 14px;"><i class="fa-solid fa-trash-can"></i> 초기화</button>
+                  <button class="btn-action" id="btn-generate-ai-checklist" style="background-color: var(--color-primary); padding: 2px 8px; font-size: 14px;"><i class="fa-solid fa-check-square"></i> 확인</button>
+                </div>
+              </div>
+              <div id="ai-checklist-container" style="flex: 1; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; font-size: 14px;">
+                <div style="color: var(--text-muted); text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.6; word-break: keep-all; padding: 10px;">
+                  선생님께서 기재하면 절대 안되는 사항이나<br>질문의 핵심요점과 어울리지 않는지 등을 체크하는 영역입니다.<br><br>자소서가 어느정도 완성된 후에 확인합니다!
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 중앙 윈도우: 자소서 입력창 및 버전 제어 -->
+          <div class="ps-pane-left" style="display: flex; flex-direction: column; min-width: 0; min-height: 0;">
+
+            <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 10px 12px; margin-bottom: 12px; border-radius: 4px; display: flex; align-items: flex-start; gap: 8px;">
+              <i class="fa-solid fa-q" style="color: #60a5fa; margin-top: 3px; font-size: 13px;"></i>
+              <p id="ps-question-display-text" style="font-size: 13.5px; line-height: 1.5; color: #bae6fd; margin: 0; word-break: keep-all; font-weight: 500;"></p>
+            </div>
+            <div class="ps-textarea-wrap" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; position: relative;">
+              <div id="ps-dynamic-details-container" style="display: none; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; padding: 10px 0;"></div>
+              <div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">
+                <div class="char-counter" id="ps-main-char-counter-wrap" style="font-size: 12px; color: #94a3b8;"><span id="ps-char-count">0</span> 자 / <span id="ps-main-char-limit" style="color:#64748b">-</span> 자</div>
+              </div>
+              <textarea id="ps-content-textarea" placeholder="이곳에 자기소개서 내용을 입력하거나 편집하십시오..." style="flex: 1; min-height: 0; margin-bottom: 0px;"></textarea>
+            </div>
+          </div>
+          
+          <!-- 우측 윈도우: 선생님 피드백 / AI 피드백 탭 바 -->
+          <div class="ps-pane-right" id="ps-feedback-pane" style="display: flex; flex-direction: column; min-width: 0; min-height: 0;">
+            <div class="memo-area" style="display: flex; flex-direction: column; height: 30%; margin-bottom: 12px; flex-shrink: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0;">학생 메모</h4>
+                <button class="btn-action" id="btn-save-memo" style="padding: 2px 8px; font-size: 14px;"><i class="fa-solid fa-floppy-disk"></i> 메모 저장</button>
+              </div>
+              <textarea id="student-memo-pad" placeholder="메모를 입력하세요..." style="flex: 1; overflow-y: auto; resize: none; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; background: rgba(0,0,0,0.2); color: var(--text-muted); font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;"></textarea>
+            </div>
+            
+            <div class="tab-navbar">
+              <div class="tab-nav-item active" id="tab-btn-manual-feedback">문항별 선생님 피드백</div>
+              <div class="tab-nav-item" id="tab-btn-ai-feedback">AI 도움받기(학생 비공개)</div>
+            </div>
+            
+            <!-- 문항별 피드백 탭 -->
+            <div class="tab-pane-content active" id="tab-content-manual" style="flex: 1; overflow-y: auto;">
+              <div class="ps-control-bar">
+                <span class="desc-text" style="font-size: 14px; color: var(--text-muted);">선생님이 직접 기록하는 첨삭 내용입니다.</span>
+              </div>
+              <div class="feedback-editor-wrap" style="position: relative; margin-top: 10px; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                <textarea id="manual-feedback-textarea" placeholder="학생을 위한 보완점 및 문항별 피드백을 기록하십시오..." style="flex: 1; resize: none;"></textarea>
+                <!-- 학생 전용 빈 화면 안내 오버레이 (정중앙 배치) -->
+                <div id="manual-feedback-empty-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-muted); text-align: center; flex-direction: column; justify-content: center; align-items: center; line-height: 1.6; word-break: keep-all; padding: 10px; font-size: 14px; z-index: 10;">
+                  🔒 선생님 문항별 피드백 조회 전용 영역입니다.<br>학생은 수정할 수 없습니다.
+                </div>
+              </div>
+            </div>
+            
+            <!-- AI 피드백 탭 (학생 노출 원천 제외) -->
+            <div class="tab-pane-content" id="tab-content-ai" style="flex: 1; overflow-y: auto;">
+              <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span class="desc-text" style="font-size: 14px; color: var(--text-muted);">AI가 분석한 자소서 피드백입니다.</span>
+                  <span id="ai-feedback-date-text" style="font-size: 11px; color: #94a3b8; font-weight: normal; display: none;"></span>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                  <button class="btn-action" id="btn-reset-ai-feedback" style="background-color: #dc3545; padding: 4px 10px; font-size: 14px;"><i class="fa-solid fa-trash-can"></i> 초기화</button>
+                  <button class="btn-action" id="btn-generate-ai-feedback" style="background-color: var(--color-primary); padding: 4px 10px; font-size: 14px;"><i class="fa-solid fa-robot"></i> AI 도움받기</button>
+                </div>
+              </div>
+              <div class="ai-feedback-viewer" id="ai-feedback-container">
+                [AI 피드백 로드 대기 중...]
+              </div>
+            </div>
+            
+          </div>
+          
+        </div>
+        
+      </div>
+      <div class="modal-footer" id="ps-modal-footer">
+        <!-- 락 잠금/해제 및 저장 버튼이 동적으로 렌더링됨 -->
+        <span id="ps-final-submit-badge" style="display: none; align-items: center; color: var(--color-danger); font-weight: bold; font-size: 14px;">✅ 최종제출 완료</span>
+        <button class="btn-action btn-secondary" id="btn-close-ps-editor-modal">닫기</button>
+        <button class="btn-action" id="btn-save-ps">저장하기</button>
+        <button class="btn-action" id="btn-submit-ps-final" style="background-color: var(--color-danger);">🚀 모든 문항을 최종본으로 제출하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 자소서 전체 뷰어 모달 -->
+  <div class="modal-overlay" id="modal-ps-viewer">
+    <div class="modal-container" style="max-width: 800px; width: 90%; height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 id="ps-viewer-modal-title">자소서 전체 뷰어</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn-action" id="btn-download-ps-pdf" style="background-color: var(--color-primary); padding: 4px 12px; font-size: 14px;"><i class="fa-solid fa-download"></i> 다운로드</button>
+          <button class="btn-close" id="btn-close-ps-viewer-modal">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+        <div id="ps-viewer-content" style="font-size: 15px; line-height: 1.6; color: var(--text-main);">
+          <!-- 전체 답변 내용이 렌더링됨 -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-close-ps-viewer-bottom">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 예상 질문 연습 모달 -->
+  <div class="modal-overlay" id="modal-interview-practice">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div style="display: flex; flex-direction: column;">
+          <h3 id="interview-modal-title">면접 예상 질문 연습 및 답변 기록</h3>
+          <div id="changed-questions-indicator" style="margin-top: 8px;"></div>
+        </div>
+        <button class="btn-close" id="btn-close-interview-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: hidden; padding: 24px; display: flex; flex-direction: column;">
+        <div class="ps-editor-grid" style="flex: 1; min-height: 0; display: grid;">
+          
+          <!-- 좌측: 질문 리스트 선택창 -->
+          <div class="ps-pane-left" style="height: 100%; display: flex; flex-direction: column; min-height: 0;">
+            <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
+              <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0;">생성된 예상 질문 목록</h4>
+
+            </div>
+            <div class="question-list-group" id="interview-question-list" style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+              <!-- 질문 번호와 문장 버튼들이 들어감 -->
+            </div>
+          </div>
+          
+          <!-- 우측: 답변 타이핑 및 기록창 -->
+          <div class="ps-pane-right" style="height: 100%; display: flex; flex-direction: column; min-height: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;">
+              <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; flex: 1; margin-right: 10px;" id="selected-question-label">질문을 선택하십시오.</h4>
+            </div>
+            <p id="modal-question-text" style="font-size: 15px; line-height: 1.5; color: var(--text-main); margin-top: 10px; margin-bottom: 5px; min-height: 45px; max-height: 30vh; overflow-y: auto; word-break: keep-all; flex-shrink: 0;"></p>
+            <div class="ps-textarea-wrap" style="flex: 1; min-height: 0; margin-top: 10px; position: relative; display: flex; flex-direction: column;">
+              <!-- 답변 작성용 텍스트창 (수정 가능) -->
+              <textarea id="interview-answer-textarea" placeholder="해당 질문에 대한 면접 답변을 작성하십시오..." style="flex: 1; resize: none; overflow-y: auto; height: 100%;"></textarea>
+              
+              
+            </div>
+          </div>
+          
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-close-interview-practice-modal">닫기</button>
+        <button class="btn-action" id="btn-save-interview-answer">답변 저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 생기부 AI 산정근거 상세 모달 창 -->
+  <div class="modal-overlay" id="modal-score-details">
+    <div class="modal-container" style="max-width: 950px; width: 90%;">
+      <div class="modal-header">
+        <h3 id="score-details-modal-title">📊 생기부 AI 상세 산정근거</h3>
+        <button class="btn-close" id="btn-close-score-details-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <!-- 상단 요약 카드 -->
+        <div id="score-details-summary-card" class="info-banner" style="margin-bottom: 20px; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;">
+          <!-- 학생 정보 및 평가일시, 총점 및 AI 종합 평가 텍스트 표시 -->
+        </div>
+        <!-- 23개 세부 채점 항목 그리드 영역 -->
+        <div class="accordion-table-grid" id="score-details-grid">
+          <!-- 동적으로 카드 렌더링 -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-close-score-details-bottom">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DB 백업 모달 -->
+  <div class="modal-overlay" id="modal-db-backup">
+    <div class="modal-container" style="max-width: 600px; width: 90%;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-database"></i> 데이터베이스 전체 백업 (CSV)</h3>
+        <button class="btn-close" onclick="document.getElementById('modal-db-backup').classList.remove('open')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px;">대용량 텍스트 파싱 에러를 우회하여 브라우저에서 직접 데이터를 CSV로 이스케이프 및 변환하여 안전하게 다운로드합니다. 백업할 테이블을 선택하세요.</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;" id="backup-table-list">
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('students')"><span>students (학생 정보)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('personal_statements')"><span>personal_statements (자기소개서 문항)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('parsed_records')"><span>parsed_records (생기부 파싱 원문)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('record_basis')"><span>record_basis (생기부 AI 분석 및 채점)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('interview_practice')"><span>interview_practice (면접 예상질문 및 답변)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('teacher_feedbacks')"><span>teacher_feedbacks (교사 피드백)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('ai_feedback_history')"><span>ai_feedback_history (AI 체크리스트 피드백)</span><i class="fa-solid fa-download"></i></button>
+          <button class="btn-action" style="justify-content: space-between; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);" onclick="downloadTableCSV('settings')"><span>settings (시스템 설정 값)</span><i class="fa-solid fa-download"></i></button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" onclick="document.getElementById('modal-db-backup').classList.remove('open')">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 생기부 PDF 원문 뷰어 모달 -->
+  <div class="modal-overlay" id="modal-pdf-preview">
+    <div class="modal-container" style="max-width: 1100px; width: 95%; height: 98vh !important; max-height: 98vh !important; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3 id="pdf-preview-modal-title">📄 생기부 PDF 문서 열람</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn-action" id="btn-download-pdf-preview" style="background-color: var(--color-primary); padding: 4px 12px; font-size: 14px;"><i class="fa-solid fa-download"></i> 다운로드</button>
+          <button class="btn-close" id="btn-close-pdf-preview-modal">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 0; flex: 1; overflow: hidden; background: #2a2a2a;">
+        <div id="pdf-preview-container" style="width: 100%; height: 100%;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-close-pdf-preview-bottom">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 안내 챗봇 플로팅 버튼 -->
+  <!-- [SION 챗봇 임시 숨김 처리]
+  <button id="btn-ai-chatbot-toggle" class="btn-chatbot" style="display: none;">
+    <i class="fa-solid fa-robot"></i> SION
+  </button>
+
+  <div id="ai-chatbot-drawer" class="chatbot-drawer">
+    <div class="chatbot-header">
+      <h4>🤖 SION</h4>
+      <button id="btn-close-chatbot">&times;</button>
+    </div>
+    <div class="chatbot-messages" id="chatbot-message-area">
+      <div class="msg system">안녕하세요! 외고·국제고 합격을 위한 관리 사이트의 SION입니다. 시스템 사용법에 대해 무엇이든 질문하세요!</div>
+    </div>
+    <div class="chatbot-input-area">
+      <label for="input-chatbot-msg" style="display:none;">질문 입력</label>
+      <input type="text" id="input-chatbot-msg" placeholder="질문을 입력하세요...">
+      <button id="btn-send-chatbot-msg"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+  -->
+
+  <!-- script.js 프론트엔드 액션 제어 스크립트 연결 (캐시 원천 차단) -->
+  <script>
+    document.write('<script src="script.js?v=' + new Date().getTime() + '"></scr' + 'ipt>');
+  </script>
+</body>
+</html>
