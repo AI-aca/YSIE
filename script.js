@@ -2154,6 +2154,11 @@ async function openInterviewPractice(studentLink, mode) {
     
     // 모달 렌더링 완료 시 최초 1회 상태 표시줄 강제 업데이트 (레이아웃 Shift 방지)
     updateChangedIndicator();
+    
+    // 창 열림과 동시에 1번 항목 강제 클릭 (공통과제 UI와 동일하게 자동 포커스)
+    if (qList.children.length > 0) {
+      qList.children[0].click();
+    }
   }
   
   document.getElementById('modal-interview-practice').classList.add('open');
