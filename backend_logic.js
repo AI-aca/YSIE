@@ -430,12 +430,13 @@ async function evaluateStudentRecord(studentId, recordText) {
     const PROMPT_OVERALL_REPORT = commonSystemInstruction + `
 [최종 단계: 사정관 종합 총평 작성 가이드라인]
 다음은 앞서 정밀하게 분석 및 추출된 학생의 생기부 채점 근거 JSON 데이터입니다. 
-당신은 이 JSON 데이터만을 100% 신뢰하여 종합 총평을 작성해야 합니다. 
-원본 생기부는 참고하지 마십시오. 오직 아래 JSON 데이터에 추출되어 있는 감점 내역(예: gradeDropsExtracted 배열 내용 등)과 획득 배열 내용만을 철저히 근거로 삼아 서술하십시오. 
-(🚨특명: 1, 2, 3학년 어떠한 학기, 어떠한 과목이든 "성적이 누락/미산출되었다"는 사실 자체를 감점 요인이나 아쉬운 점으로 지적하거나 언급하는 행위를 전면 금지합니다. 시스템상 성적이 누락된 학기는 모두 만점(ALL A)으로 완벽하게 처리되었으므로, 이를 결함이나 아쉬운 점으로 서술해서는 절대로 안 됩니다.)
-(🚨또한, JSON에 없는 기술·가정, 정보 등의 과목을 스스로 유추하여 감점으로 지적하는 행위를 절대 금지합니다.)
+당신은 대한민국 외고 및 국제고등학교 입학 사정관입니다.
+(🚨특명: 수학, 과학 과목의 성적이나 탐구 실적 부재를 절대로 감점 요인으로 언급하지 마십시오. 외고/국제고 평가는 영어, 국어, 사회 중심입니다.)
+(🚨특명: "성적이 누락/미산출되었다"는 사실 자체를 감점 요인이나 아쉬운 점으로 지적하거나 언급하는 행위를 전면 금지합니다.)
+(🚨특명: 과거 과학고 시절의 잔재인 [학업역량], [진로적합성], [인성] 3대 영역으로 나누어 설명하지 마십시오.)
 
-아래 지시된 내용을 모두 포함하여 자연스럽게 이어지는 하나의 단일 문자열로 작성할 것 (🚨JSON 파싱 에러 방지를 위해 줄바꿈 문자 \\n 등은 절대 사용 금지, 띄어쓰기로만 문장 구분). 먼저 제공된 JSON 내용을 바탕으로 [학업역량], [진로적합성], [인성] 3가지 영역별로 나누어 주요 감점 원인(부족한 심화 탐구 깊이나 치명적 약점)을 객관적이고 냉철하게 분석하여 서술할 것. 그 후, 앞서 서술한 감점 사항들을 바탕으로 최종적인 사정관의 [종합 총평]을 자연스럽게 결론짓듯이 서술할 것. (출력 예시: "학업역량 영역에서는 ~한 점이 아쉬우며, 진로적합성 영역에서는 ~부분이 감점 요인입니다. 인성 영역에서는 ~한 점이 보완되어야 합니다. [종합 총평] 이 학생은 전체적으로...")
+아래 지시된 내용을 모두 포함하여 자연스럽게 이어지는 하나의 단일 문자열로 작성할 것 (🚨JSON 파싱 에러 방지를 위해 줄바꿈 문자 \\n 등은 절대 사용 금지, 띄어쓰기로만 문장 구분). 
+학생의 문과적 소양(영어/국어/사회 성취도), 출결 성실성, 그리고 학폭 기록 유무(발견 시 치명적 결격 사유로 강하게 지적)를 바탕으로 객관적이고 냉철하게 사정관의 [종합 총평]을 서술할 것.
 
 반드시 아래 JSON 포맷을 유지하여 순수 JSON만 반환하십시오.
 {
@@ -588,37 +589,36 @@ async function evaluateStudentRecord(studentId, recordText) {
     const { area1, area2, area3 } = evaluation;
 
     let suitability = "서류 탈락 유력(지원 불가)";
-    if (totalScore >= 305) suitability = "지원 매우 안정적(적극 권장)";
-    else if (totalScore >= 280) suitability = "지원 다소 안정적(권장)";
-    else if (totalScore >= 255) suitability = "지원 다소 불안정(소극 권장)";
-    else if (totalScore >= 220) suitability = "지원 불안정(비권장)";
+    if (totalScore >= 158) suitability = "지원 매우 안정적(적극 권장)";
+    else if (totalScore >= 154) suitability = "지원 다소 안정적(권장)";
+    else if (totalScore >= 150) suitability = "지원 다소 불안정(소극 권장)";
+    else if (totalScore >= 140) suitability = "지원 불안정(비권장)";
     
     const sName = student.student_name || student.name || '학생';
     const targetSchoolName = student.target_school || student.targetSchool || '';
     
-    const dedupeGrades = (arr) => [...new Set(arr || [])];
-    const mathGradesText = dedupeGrades(finalParsedData.mathGrades).join(' ');
-    const sciGradesText = dedupeGrades(finalParsedData.sciGrades).join(' ');
+    const engKeys = Object.keys(finalParsedData.englishGrades || {});
+    const korKeys = Object.keys(finalParsedData.koreanGrades || {});
+    const socKeys = Object.keys(finalParsedData.socialGrades || {});
     const expectedTerms = ['2-1', '2-2', '3-1'];
     let isMissing = false;
     expectedTerms.forEach(term => {
-      if (!mathGradesText.includes(term) || !sciGradesText.includes(term)) isMissing = true;
+      if (!engKeys.includes(term) || !korKeys.includes(term) || !socKeys.includes(term)) isMissing = true;
     });
-    const warningMsg = isMissing ? `> 🚨 **[주의] 생기부에 성적이 누락된 학기가 감지되어 해당 학기 성적을 만점(ALL A)으로 반영하여 산출한 점수입니다.**\n\n` : ``;
+    
+    const warningMsg = isMissing ? `> 🚨 **[주의] 생기부에 성적이 누락된 학기가 감지되어 대체 알고리즘(<표2> 기준)에 따라 점수를 산출하였습니다.**\n\n` : ``;
 
+    let displayScore = String(totalScore);
     const scoreHeader = `# 📄 ${sName} 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n` +
                   `> ℹ️ **[평가 기준 안내]** 3학년의 창의적 체험활동, 세부능력 및 특기사항, 행동특성 및 종합의견은 원서 제출 기간 전에 모두 파악할 수 없기에 미반영된 상태로 분석 및 산정된 점수이며, 지원 학교 적합도 역시 이 기준을 반영하였습니다.\n\n` +
                   warningMsg +
-                        `### 🎯 영역별 채점 결과 요약\n` +
-                        `* **학업역량 (210점 만점)**: ${area1} 점\n` +
-                        `* **진로적합성 (75점 만점)**: ${area2} 점\n` +
-                        `* **인성 (115점 만점)**: ${area3} 점\n` +
-                        `* **🔥 종합 생기부 평가 점수**: ${totalScore} 점 / 400점 만점\n` +
+                        `### 🎯 채점 결과 요약\n` +
+                        `* **🔥 종합 생기부 평가 점수**: ${displayScore} 점 / 160점 만점\n` +
                         `* **🚀 지원 학교 적합도**: ${suitability}\n\n---\n`;    
                         
     let overallText = finalParsedData.overallReport || "총평 데이터가 없습니다.";
     let legacyReport = "\n---\n## 🏁 사정관 종합 총평\n" + overallText + "\n\n";
-    legacyReport += "<!-- ADMIN_ONLY_START -->\n---\n## 🔍 관리자 전용: 30개 세부 항목별 채점 근거 및 분석\n\n";
+    legacyReport += "<!-- ADMIN_ONLY_START -->\n---\n## 🔍 관리자 전용: 외고·국제고 채점 로직(영어/출결/동점자/학폭) 주요 근거\n\n";
     
     try {
       const Object = window.Object || global.Object;
@@ -671,7 +671,6 @@ async function evaluateStudentRecord(studentId, recordText) {
       console.error('record_basis DB 저장 오류:', basisErr);
       throw new Error('record_basis DB 저장 실패: ' + basisErr.message);
     }
-    const displayScore = isMissing ? `${totalScore} 🚨` : String(totalScore);
     const { error: studentScoreErr } = await window.supabaseClient.from('students').update({ record_score_ai: displayScore }).eq('id', student.id);
     if (studentScoreErr) console.error('students score update error:', studentScoreErr);
 
@@ -854,14 +853,40 @@ async function uploadStudentRecordPdf(studentId, fileObject, fileName) {
 }
 
 function calculateRecordScore(data) {
-  let totalEnglish = 160;
   const gradePoints = { 'A': 40, 'B': 36, 'C': 32, 'D': 28, 'E': 24 };
-  let eGrades = data.englishGrades || {};
+  
+  const fillMissingGrades = (gradesObj) => {
+    const valid = ['A', 'B', 'C', 'D', 'E'];
+    const getG = (s) => { let v = (gradesObj[s]||'').toUpperCase(); return valid.includes(v) ? v : null; };
+    let g21 = getG('2-1'); let g22 = getG('2-2'); let g31 = getG('3-1'); let g32 = getG('3-2');
+    
+    // 1개 학기 성적이 없는 경우 (같은 학년의 다른 학기 성적으로 대체)
+    if (!g21 && g22) g21 = g22;
+    if (!g22 && g21) g22 = g21;
+    if (!g31 && g32) g31 = g32;
+    if (!g32 && g31) g32 = g31;
+    
+    // 1개 학년의 성적이 모두 없는 경우 (다른 학년의 동일 학기 성적으로 대체)
+    if (!g21 && !g22 && g31 && g32) { g21 = g31; g22 = g32; }
+    if (!g31 && !g32 && g21 && g22) { g31 = g21; g32 = g22; }
+    
+    // 위 로직을 거치면 '1개 학기 성적만 있는 경우'도 자연스럽게 도배됨
+    
+    // 혹시라도 전부 비어있다면 기본값 A
+    return { '2-1': g21||'A', '2-2': g22||'A', '3-1': g31||'A', '3-2': g32||'A' };
+  };
+
+  let eGrades = fillMissingGrades(data.englishGrades || {});
+  let kGrades = fillMissingGrades(data.koreanGrades || {});
+  let sGrades = fillMissingGrades(data.socialGrades || {});
+  
+  let totalEnglish = 160;
+  let hasBUnder = false; // 영어, 국어, 사회 중 하나라도 B 이하인지 체크
   
   ['2-1', '2-2', '3-1', '3-2'].forEach(sem => {
-    let g = (eGrades[sem] || 'A').toUpperCase();
-    if (!gradePoints[g]) g = 'A';
+    let g = eGrades[sem];
     totalEnglish -= (40 - gradePoints[g]);
+    if (g !== 'A') hasBUnder = true; // 영어 성적 B 이하 시 사이렌 발동
   });
   
   let att = data.attendance || {};
@@ -875,20 +900,16 @@ function calculateRecordScore(data) {
   
   let finalScore = totalEnglish - deduction;
   
-  let kGrades = data.koreanGrades || {};
-  let sGrades = data.socialGrades || {};
   const tbSequence = [
-    { sem: '3-2', type: '국어', g: (kGrades['3-2'] || 'A').toUpperCase() },
-    { sem: '3-2', type: '사회', g: (sGrades['3-2'] || 'A').toUpperCase() },
-    { sem: '3-1', type: '국어', g: (kGrades['3-1'] || 'A').toUpperCase() },
-    { sem: '3-1', type: '사회', g: (sGrades['3-1'] || 'A').toUpperCase() },
-    { sem: '2-2', type: '국어', g: (kGrades['2-2'] || 'A').toUpperCase() },
-    { sem: '2-2', type: '사회', g: (sGrades['2-2'] || 'A').toUpperCase() },
-    { sem: '2-1', type: '국어', g: (kGrades['2-1'] || 'A').toUpperCase() },
-    { sem: '2-1', type: '사회', g: (sGrades['2-1'] || 'A').toUpperCase() }
+    { sem: '3-2', type: '국어', g: kGrades['3-2'] },
+    { sem: '3-2', type: '사회', g: sGrades['3-2'] },
+    { sem: '3-1', type: '국어', g: kGrades['3-1'] },
+    { sem: '3-1', type: '사회', g: sGrades['3-1'] },
+    { sem: '2-2', type: '국어', g: kGrades['2-2'] },
+    { sem: '2-2', type: '사회', g: sGrades['2-2'] },
+    { sem: '2-1', type: '국어', g: kGrades['2-1'] },
+    { sem: '2-1', type: '사회', g: sGrades['2-1'] }
   ];
-  
-  let hasBUnder = false;
   let tbStringArr = [];
   tbSequence.forEach(tb => {
     let g = tb.g;
@@ -940,14 +961,41 @@ function generateScoreCardsData(d, scores, role = '관리자') {
     ]
   });
 
+  let tbWarning = false;
+  let tbWarningIdx = -1;
+  const tbQuotes = scores.tbSequence ? scores.tbSequence.map((tb, i) => {
+    let text = `${i+1}순위 (${tb.sem} ${tb.type}): ${tb.g}`;
+    if (tb.g !== 'A') {
+      tbWarning = true;
+      if (tbWarningIdx === -1) tbWarningIdx = i + 1;
+      text += ' 🚨 (컷오프 감점 요인)';
+    }
+    return text;
+  }) : [];
+
   cards.push({
     key: 'tie_breaker',
     range: '🔍 국어 및 사회(역사) 성취도',
-    title: '3. 동점자 사정 우선순위 (경합 대비)',
+    title: tbWarning ? '3. 동점자 사정 우선순위 ⚠️ [컷오프 위험]' : '3. 동점자 사정 우선순위 (안정)',
     max: 0,
-    desc: '점수 경합 시 아래 순서대로 컷오프 처리됩니다.',
+    desc: tbWarning 
+      ? `점수 경합 시 컷오프 위험이 존재합니다. (발목 잡는 1순위: ${tbWarningIdx}순위)` 
+      : '점수 경합 시 아래 순서대로 컷오프 처리됩니다. (전 과목 A로 동점자 경합 시 최상위권 유리)',
     score: 0,
-    quote: scores.tbSequence ? scores.tbSequence.map((tb, i) => `${i+1}순위 (${tb.sem} ${tb.type}): ${tb.g}`) : []
+    quote: tbQuotes
+  });
+
+  const sv = d.schoolViolence || '';
+  cards.push({
+    key: 'school_violence',
+    range: '🔍 행동특성 및 종합의견, 출결 특기사항 등',
+    title: '4. 기타 학폭 등 특기사항 (점수 무관)',
+    max: 0,
+    desc: '학교폭력 가해 기록 등 결격 사유 탐지 (160점 산출에는 미반영되나 서류 평가 시 치명적 타격)',
+    score: 0,
+    quote: sv && sv !== '없음' 
+      ? [`⚠️ 학폭 기록 발견: ${sv}`] 
+      : ['✅ 학폭 관련 특이사항 발견되지 않음']
   });
 
   return cards;

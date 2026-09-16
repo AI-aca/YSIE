@@ -2400,7 +2400,7 @@ function bindEventHandlers() {
     cTitle.style.display = 'flex';
     cTitle.style.alignItems = 'center';
     cTitle.style.gap = '14px';
-    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; white-space: nowrap;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생</span>`;
+      cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; white-space: nowrap;">🚨 표기 : 영어, 국어, 사회에 B 이하가 있는 학생</span>`;
       } else {
         document.getElementById('content-title').textContent = titleMap[CURRENT_MENU] || '초기 화면';
       }
@@ -3535,18 +3535,6 @@ async function openScoreDetailsModal(studentLink) {
       let cleanReport = res.report || res.analysisReport || '분석 리포트가 존재하지 않습니다.';
       cleanReport = cleanReport.replace(/##.*SYSTEM_DATA[\s\S]*/, '').trim();
 
-      const cardsForMath = res.scoreCards || (res.json ? (typeof res.json === 'string' ? JSON.parse(res.json) : res.json) : []);
-      let area1Math = 0; for(let i=0; i<12; i++) { if(cardsForMath[i]) area1Math += cardsForMath[i].score; }
-      let area2Math = 0; for(let i=12; i<18; i++) { if(cardsForMath[i]) area2Math += cardsForMath[i].score; }
-      let area3Math = 0; for(let i=18; i<30; i++) { if(cardsForMath[i]) area3Math += cardsForMath[i].score; }
-      const finalScoreMath = res.totalScore || res.total || (area1Math + area2Math + area3Math) || 0;
-
-      // AI의 수학 연산 오류 강제 치환
-      cleanReport = cleanReport.replace(/\*\*학업역량.*\*\*.*점/g, '**학업역량 (210점 만점)**: ' + area1Math + ' 점');
-      cleanReport = cleanReport.replace(/\*\*진로적합성.*\*\*.*점/g, '**진로적합성 (75점 만점)**: ' + area2Math + ' 점');
-      cleanReport = cleanReport.replace(/\*\*인성.*\*\*.*점/g, '**인성 (115점 만점)**: ' + area3Math + ' 점');
-            cleanReport = cleanReport.replace(/\*\*🔥 종합 생기부 평가 점수\*\*:.*만점/g, '**🔥 종합 생기부 평가 점수**: ' + finalScoreMath + ' 점 / 160점 만점');
-
       // 프론트엔드 UI에서는 ADMIN_ONLY 마크다운 텍스트 블록 전체를 무조건 날려버림 (아래 예쁜 그리드 UI 카드로 대체되므로 중복 표시 방지)
       cleanReport = cleanReport.replace(/\n*<!-- ADMIN_ONLY_START -->[\s\S]*?<!-- ADMIN_ONLY_END -->\n*(?=-{3})/g, '\n');
 
@@ -3561,7 +3549,7 @@ async function openScoreDetailsModal(studentLink) {
       const gridTitle = `
         <div style="grid-column: span 2; margin-top: 10px; padding-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.1);">
           <h3 style="color: var(--color-primary); margin: 0 0 10px 0;">
-            <i class="fa-solid fa-list-check"></i> 30개 세부 항목별 채점 주요 근거
+            <i class="fa-solid fa-list-check"></i> 외고·국제고 채점 로직(영어/출결/동점자/학폭) 주요 근거
           </h3>
         </div>
       `;
