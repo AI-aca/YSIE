@@ -4784,7 +4784,7 @@ function updateAssignmentStatusBoard() {
   
   if (validSaveCount > 0) {
     btnSave.disabled = false;
-    btnSave.textContent = '변경된 과제 답변 저장하기';
+    btnSave.textContent = '변경된 과제 답변 통째로 저장하기';
   } else {
     btnSave.disabled = true;
     btnSave.textContent = '저장할 변경사항 없음';

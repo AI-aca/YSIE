@@ -626,23 +626,28 @@
         <h3 id="assignment-modal-title">📝 공통과제 연습 및 답변 기록</h3>
         <button class="btn-close" id="btn-close-assignment-modal">&times;</button>
       </div>
-      <div class="modal-body" style="padding: 24px; display: flex; gap: 24px; height: 700px; max-height: 80vh;">
-        <!-- 좌측 과제 목록 패널 -->
-        <div style="width: 250px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
-          <h4 style="padding: 15px; margin: 0; color: #bae6fd; font-size: 14.5px; font-weight: bold; border-bottom: 2px solid rgba(255,255,255,0.1); background-color: rgba(0,0,0,0.3); text-align: center;"><i class="fa-solid fa-list"></i> 등록된 과제 목록</h4>
-          <ul id="assignment-modal-list" class="question-list" style="flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0;">
-            <!-- JS 동적 렌더링 -->
-          </ul>
-        </div>
-        <!-- 우측 내용 패널 -->
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
-          <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 15px; border-radius: 4px;">
-            <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 14px;"><i class="fa-solid fa-circle-info"></i> 과제 상세 내용</h4>
-            <p id="assignment-question-text" style="font-size: 15px; line-height: 1.6; color: var(--text-main); margin: 0; word-break: keep-all; white-space: pre-wrap;">좌측에서 과제를 선택하십시오.</p>
+      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 15px; height: 700px; max-height: 80vh;">
+        <!-- 상단 상태판 (전체 문항 표시) -->
+        <div id="assignment-status-board" class="ps-status-board" style="background: rgba(0,0,0,0.4); padding: 10px 15px; border-radius: 4px; font-size: 13px; color: #a1a1aa; border: 1px solid var(--border-color); white-space: pre-wrap; display: none;"></div>
+        
+        <!-- 하단 좌우 패널 래퍼 -->
+        <div style="display: flex; gap: 24px; flex: 1; min-height: 0;">
+          <!-- 좌측 과제 목록 패널 -->
+          <div style="width: 250px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
+            <h4 style="padding: 15px; margin: 0; color: #bae6fd; font-size: 14.5px; font-weight: bold; border-bottom: 2px solid rgba(255,255,255,0.1); background-color: rgba(0,0,0,0.3); text-align: center;"><i class="fa-solid fa-list"></i> 등록된 과제 목록</h4>
+            <ul id="assignment-modal-list" class="question-list" style="flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0;">
+              <!-- JS 동적 렌더링 -->
+            </ul>
           </div>
-          <div id="assignment-status-board" style="background: rgba(0,0,0,0.4); padding: 10px 15px; border-radius: 4px; font-size: 13px; color: #a1a1aa; border: 1px solid var(--border-color); white-space: pre-wrap; display: none;"></div>
-          <div class="ps-textarea-wrap" style="flex: 1; display: flex; flex-direction: column;">
-            <textarea id="assignment-answer-textarea" placeholder="선택한 과제에 대한 답변을 작성하십시오..." style="flex: 1; min-height: 250px; resize: vertical; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 15px; line-height: 1.5;" disabled></textarea>
+          <!-- 우측 내용 패널 -->
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
+            <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 15px; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 14px;"><i class="fa-solid fa-circle-info"></i> 과제 상세 내용</h4>
+              <p id="assignment-question-text" style="font-size: 15px; line-height: 1.6; color: var(--text-main); margin: 0; word-break: keep-all; white-space: pre-wrap;">좌측에서 과제를 선택하십시오.</p>
+            </div>
+            <div class="ps-textarea-wrap" style="flex: 1; display: flex; flex-direction: column;">
+              <textarea id="assignment-answer-textarea" placeholder="선택한 과제에 대한 답변을 작성하십시오..." style="flex: 1; min-height: 250px; resize: vertical; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 15px; line-height: 1.5;" disabled></textarea>
+            </div>
           </div>
         </div>
       </div>
