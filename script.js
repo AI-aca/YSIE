@@ -4370,10 +4370,7 @@ window.openPdfPreview = async function(url, studentName, studentSchool) {
 
 window.saveMemo = async function() {
   if (!ACTIVE_PS_STUDENT) return;
-  if (CURRENT_ROLE !== '학생') {
-    alert('학생 메모는 학생 본인만 수정 및 저장할 수 있습니다. (교사/관리자는 읽기 전용)');
-    return;
-  }
+
   const memo = document.getElementById('student-memo-pad').value;
   showGlobalLoader('메모 저장 중...', 300);
   const res = await window.saveStudentMemo(ACTIVE_PS_STUDENT, memo);
