@@ -2203,17 +2203,6 @@ function bindEventHandlers() {
       if (!window.SCHOOL_QUESTIONS_MAP) window.SCHOOL_QUESTIONS_MAP = [];
       window.SCHOOL_QUESTIONS_MAP.push({ name: '', questions: [] });
       renderSettingsSchools();
-
-    if (basic.common_assignments) {
-      try {
-        SETTINGS_COMMON_ASSIGNMENTS = JSON.parse(basic.common_assignments);
-      } catch(e) {
-        SETTINGS_COMMON_ASSIGNMENTS = [];
-      }
-    } else {
-      SETTINGS_COMMON_ASSIGNMENTS = [];
-    }
-    renderSettingsAssignments();
     };
   }
 
@@ -3165,6 +3154,17 @@ async function loadSettingsForm() {
     window.targetSchoolsList = Array.from(new Set(window.SCHOOL_QUESTIONS_MAP.map(s => s.name)));
     
     renderSettingsSchools();
+
+    if (basic.common_assignments) {
+      try {
+        SETTINGS_COMMON_ASSIGNMENTS = JSON.parse(basic.common_assignments);
+      } catch(e) {
+        SETTINGS_COMMON_ASSIGNMENTS = [];
+      }
+    } else {
+      SETTINGS_COMMON_ASSIGNMENTS = [];
+    }
+    renderSettingsAssignments();
     
     // 드라이브 폴더 ID 바인딩
     
