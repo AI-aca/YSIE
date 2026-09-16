@@ -4784,7 +4784,8 @@ async function renderSettingsAssignments() {
     const labelSpan = document.createElement('span');
     labelSpan.style.color = 'var(--text-muted)';
     labelSpan.style.fontWeight = 'bold';
-    labelSpan.style.width = '60px';
+    labelSpan.style.width = '80px';
+    labelSpan.style.whiteSpace = 'nowrap';
     labelSpan.textContent = '적용 학년도';
     
     const yearInput = document.createElement('input');
@@ -4841,18 +4842,23 @@ async function renderSettingsAssignments() {
       qItem.className = 'q-item';
       qItem.style.display = 'flex';
       qItem.style.gap = '10px';
-      qItem.style.alignItems = 'stretch';
+      qItem.style.alignItems = 'flex-start';
       
       const handle = document.createElement('div');
       handle.className = 'drag-handle';
       handle.innerHTML = '<i class="fa-solid fa-bars"></i>';
       handle.style.display = 'flex';
       handle.style.alignItems = 'center';
+      handle.style.height = '40px';
+      handle.style.cursor = 'grab';
+      handle.style.color = 'var(--text-muted)';
+      handle.style.paddingRight = '5px';
       
       const labelInput = document.createElement('input');
       labelInput.type = 'text';
       labelInput.className = 'form-control';
       labelInput.style.width = '120px';
+      labelInput.style.height = '40px';
       labelInput.placeholder = '라벨(예: 과제1)';
       labelInput.value = q.label || '';
       labelInput.onchange = (e) => { q.label = e.target.value; window.isSettingsDirty = true; };
@@ -4860,8 +4866,17 @@ async function renderSettingsAssignments() {
       const contentInput = document.createElement('textarea');
       contentInput.className = 'form-control';
       contentInput.style.flex = '1';
-      contentInput.style.minHeight = '60px';
-      contentInput.style.resize = 'vertical';
+      contentInput.style.minHeight = '40px';
+      contentInput.style.lineHeight = '1.4';
+      contentInput.style.padding = '6px';
+      contentInput.style.overflow = 'hidden';
+      contentInput.style.resize = 'none';
+      contentInput.oninput = function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+      };
+      // 초기 높이 조정을 위해 약간의 딜레이 후 실행
+      setTimeout(() => { contentInput.dispatchEvent(new Event('input')); }, 10);
       contentInput.placeholder = '과제 내용을 구체적으로 입력하세요.';
       contentInput.value = q.content || '';
       contentInput.onchange = (e) => { q.content = e.target.value; window.isSettingsDirty = true; };
@@ -4869,7 +4884,8 @@ async function renderSettingsAssignments() {
       const btnDelQ = document.createElement('button');
       btnDelQ.className = 'btn-action btn-danger';
       btnDelQ.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-      btnDelQ.style.padding = '10px';
+      btnDelQ.style.padding = '8px 12px';
+      btnDelQ.style.height = '40px';
       btnDelQ.style.backgroundColor = '#f43f5e';
       btnDelQ.onclick = () => {
         assignData.questions.splice(qIndex, 1);
