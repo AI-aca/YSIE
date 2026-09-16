@@ -555,6 +555,7 @@ const TABLE_COLUMNS = {
     { label: '현재 학교', key: 'school' },
     { label: '지원학교', key: 'targetSchool' },
     { label: '담당자', key: 'teacher' },
+    { label: '공통과제 연습', key: 'interviewAssign' },
     { label: '생기부 기반 연습', key: 'interviewRecord' },
     { label: '자소서 기반 연습', key: 'interviewPs' }
   ]
@@ -603,7 +604,7 @@ function renderMainTable() {
   // 메뉴별 필터 제어
   const filterSchool = document.getElementById('filter-target-school');
   const filterYear = document.getElementById('filter-admission-year');
-  if (filterSchool) filterSchool.style.display = (CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
+  if (filterSchool) filterSchool.style.display = (CURRENT_MENU === 'dashboard' || CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
   if (filterYear) filterYear.style.display = (CURRENT_MENU === 'dashboard' || CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
   
   headerRow.innerHTML = '';
@@ -748,7 +749,7 @@ function renderMainTable() {
       const val = student[col.key];
       
       if (student.isReference) {
-        const blockedKeys = ['passRound1', 'passFinal', 'studentLink', 'studentSms', 'psStatus', 'psProgress', 'psViewer', 'interviewRecord', 'interviewPs', 'manage'];
+        const blockedKeys = ['passRound1', 'passFinal', 'studentLink', 'studentSms', 'psStatus', 'psProgress', 'psViewer', 'interviewAssign', 'interviewRecord', 'interviewPs', 'manage'];
         if (blockedKeys.includes(col.key)) {
           if (CURRENT_MENU === 'dashboard' && col.key === 'manage') {
             // 대시보드 메뉴에서는 manage 컬럼(수정 버튼) 예외 허용
@@ -896,10 +897,11 @@ function renderMainTable() {
           td.innerHTML = `<span class="text-muted">미생성</span>` + btnAiQuestions;
         }
       } 
-      else if (col.key === 'interviewRecord' || col.key === 'interviewPs') {
+      else if (col.key === 'interviewAssign' || col.key === 'interviewRecord' || col.key === 'interviewPs') {
+        const isAssign = col.key === 'interviewAssign';
         const isRecord = col.key === 'interviewRecord';
-        const typeStr = isRecord ? '생기부' : '자소서';
-        const modeStr = isRecord ? 'record' : 'ps';
+        const typeStr = isAssign ? '공통과제' : (isRecord ? '생기부' : '자소서');
+        const modeStr = isAssign ? 'assign' : (isRecord ? 'record' : 'ps');
         const qStatus = String(student.questions || '');
         
         let hasQuestions = false;
