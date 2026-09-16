@@ -2060,7 +2060,7 @@ async function openInterviewPractice(studentLink, mode) {
       const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
       
       indicator.innerHTML = `
-        <div style="margin-top: 12px; padding: 12px 16px; background-color: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;">
+        <div style="padding: 12px 16px; background-color: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;">
           <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
             <span style="color: var(--color-primary);">💾 답변이 변경된 질문(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
           </div>
