@@ -4802,8 +4802,7 @@ async function renderSettingsAssignments() {
     
     const btnAddQ = document.createElement('button');
     btnAddQ.className = 'btn-action';
-    btnAddQ.style.backgroundColor = '#10b981';
-    btnAddQ.innerHTML = '<i class="fa-solid fa-plus"></i> 과제 문항 추가';
+        btnAddQ.innerHTML = '<i class="fa-solid fa-plus"></i> 과제 문항 추가';
     btnAddQ.onclick = () => {
       assignData.questions = assignData.questions || [];
       assignData.questions.push({ label: '과제' + (assignData.questions.length + 1), content: '' });
@@ -4813,7 +4812,7 @@ async function renderSettingsAssignments() {
     
     const btnDelY = document.createElement('button');
     btnDelY.className = 'btn-action';
-    btnDelY.style.backgroundColor = '#f43f5e';
+    btnDelY.style.backgroundColor = 'var(--color-danger)';
     btnDelY.innerHTML = '<i class="fa-solid fa-trash-can"></i> 학년도 통째로 삭제';
     btnDelY.onclick = () => {
       if(confirm('해당 학년도의 모든 공통과제를 삭제하시겠습니까?')) {
@@ -4888,7 +4887,7 @@ async function renderSettingsAssignments() {
       btnDelQ.innerHTML = '<i class="fa-solid fa-xmark"></i>';
       btnDelQ.style.padding = '8px 12px';
       btnDelQ.style.height = '40px';
-      btnDelQ.style.backgroundColor = '#f43f5e';
+      btnDelQ.style.backgroundColor = 'var(--color-danger)';
       btnDelQ.onclick = () => {
         assignData.questions.splice(qIndex, 1);
         window.isSettingsDirty = true;
