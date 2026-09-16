@@ -5014,6 +5014,7 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
       li.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
       li.style.color = '#fff';
       li.style.fontSize = '14px';
+      li.style.textAlign = 'center';
       
       li.onclick = () => {
         // 이전 입력값 임시 저장
