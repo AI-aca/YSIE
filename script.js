@@ -3996,7 +3996,10 @@ function renderPdfList() {
     const btn = document.createElement('button');
     btn.className = 'btn-action';
     btn.style.cssText = 'flex: 1; text-align:left; background: var(--bg-surface); padding: 10px; color: var(--text-main); font-size: 14px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;';
-    btn.innerHTML = `<i class="fa-regular fa-file-pdf" style="color:var(--color-danger); margin-right:5px;"></i> ${file.name}`;
+    
+    // 화면에 보여줄 때는 업로드 시 중복 방지용으로 붙은 타임스탬프(숫자 13자리 등)를 제거합니다.
+    const displayName = file.name.replace(/\s\d+(?=\.pdf$)/i, '');
+    btn.innerHTML = `<i class="fa-regular fa-file-pdf" style="color:var(--color-danger); margin-right:5px;"></i> ${displayName}`;
     
     btn.onclick = () => {
       Array.from(listEl.children).forEach(c => {
