@@ -456,7 +456,14 @@
         <div class="ps-editor-grid" style="grid-template-columns: 1fr 1fr 1fr; flex: 1; min-height: 0;">
           <!-- 좌측 윈도우(상하): 메모장 및 AI 체크리스트 -->
           <div class="ps-pane-leftmost" style="display: flex; flex-direction: column; min-width: 0; min-height: 0;">
-
+            <div class="memo-area" style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0;">학생 메모</h4>
+                <button class="btn-action" id="btn-save-memo" style="background-color: var(--color-primary); padding: 2px 8px; font-size: 14px;"><i class="fa-solid fa-save"></i> 메모 저장</button>
+              </div>
+              <textarea id="student-memo-pad" class="form-control" style="flex: 1; min-height: 0; resize: none; border-radius: 4px; background: #0f172a;" placeholder="학생에 대한 특이사항이나 메모를 입력하세요..."></textarea>
+            </div>
+            
             <div class="checklist-area" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h4 style="font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0;">항목별 체크리스트 확인하기</h4>

@@ -1,6 +1,10 @@
 # 작업 이력
 
-## 2026-09-17 프로젝트 규칙 최우선 항목 추가
+## 2026-09-17
+- (FIX) 공통과제 admission_year 누락 오류 수정 (script.js의 select('admission_year, admissionYear') 오타 제거)
+- (FIX) 자소서 에디터 좌측 패널에 누락된 학생 메모장(student-memo-pad) HTML UI 태그 복구 (index.html)
+- (FIX) 수파베이스 teacher_feedbacks, school_questions 테이블 확인
+- (FIX) JS 코드 내 학생/학교명 undefined 매핑 버그 수정
 - `[MD] PROJECT RULES.md` 최상단에 "모든 내용은 JS 코드 및 수파베이스 프롬프트 등 팩트만을 기반으로 말할 것"을 명시하는 절대 규칙 추가 반영.
 
 ## 2026-09-16 AI 피드백 및 체크리스트 오작동 해결

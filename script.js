@@ -5181,8 +5181,8 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
     const payload = JSON.stringify(validAnswers);
     
     // Upsert 단일 쿼리로 최적화 (경쟁 상태 충돌 100% 원천 차단)
-    const { data: stu } = await window.supabaseClient.from('students').select('admission_year, admissionYear').eq('student_link', CURRENT_ASSIGNMENT_STUDENT_LINK).maybeSingle();
-    const year = stu ? (stu.admission_year || stu.admissionYear) : '';
+    const { data: stu } = await window.supabaseClient.from('students').select('admission_year').eq('student_link', CURRENT_ASSIGNMENT_STUDENT_LINK).maybeSingle();
+    const year = stu ? stu.admission_year : '';
     
     const res = await window.supabaseClient.from('common_assignments_answers').upsert({
       student_id: CURRENT_ASSIGNMENT_STUDENT_LINK,
