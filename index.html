@@ -73,7 +73,7 @@
           <a id="menu-record"><i class="fa-solid fa-file-invoice"></i> 생활기록부</a>
         </li>
         <li class="menu-item" data-menu="interview">
-          <a id="menu-interview"><i class="fa-solid fa-comments"></i> 예상질문 연습</a>
+          <a id="menu-interview"><i class="fa-solid fa-comments"></i> 과제 및 예상질문 연습</a>
         </li>
         <li class="menu-item" data-menu="guide">
           <a id="menu-guide"><i class="fa-solid fa-book-open"></i> 입학요강</a>
@@ -188,6 +188,20 @@
         
         <hr>
         
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <div class="settings-header" style="margin-bottom: 10px;">
+            <h3 style="white-space: nowrap;"><i class="fa-solid fa-tasks"></i> 학년도별 공통과제 관리</h3>
+            <button class="btn-action" id="btn-save-settings-assignments" style="padding: 4px 10px; font-size: 14px;"><i class="fa-solid fa-floppy-disk"></i> 과제 저장</button>
+            <div style="flex: 1; text-align: right;">
+              <button class="btn-action" id="btn-add-assignment" style="padding: 6px 12px; font-size: 14px; background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학년도 과제 추가</button>
+            </div>
+          </div>
+          <div id="settings-assignment-list" style="display: block; margin-top: 10px; display:flex; flex-direction:column; gap:10px;">
+            <!-- script.js에서 동적 주입 -->
+          </div>
+        </div>
+        <hr>
         <!-- API 연동 설정 그룹 -->
         <div class="form-group" style="margin-bottom: 20px;">
           <div class="settings-header" style="margin-bottom: 0;">
@@ -604,7 +618,31 @@
     </div>
   </div>
 
-  <!-- 5. 생기부 AI 산정근거 상세 모달 창 -->
+  
+  <!-- 공통과제 연습 모달 -->
+  <div class="modal-overlay" id="modal-assignment-practice">
+    <div class="modal-container" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 id="assignment-modal-title">📝 공통과제 연습 및 답변 기록</h3>
+        <button class="btn-close" id="btn-close-assignment-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 15px;">
+        <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 15px; border-radius: 4px;">
+          <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 14px;"><i class="fa-solid fa-circle-info"></i> 공통과제 내용</h4>
+          <p id="assignment-question-text" style="font-size: 15px; line-height: 1.6; color: var(--text-main); margin: 0; word-break: keep-all; white-space: pre-wrap;"></p>
+        </div>
+        <div class="ps-textarea-wrap" style="flex: 1; display: flex; flex-direction: column;">
+          <textarea id="assignment-answer-textarea" placeholder="여기에 과제에 대한 답변을 작성하십시오..." style="flex: 1; min-height: 250px; resize: vertical; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 15px; line-height: 1.5;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action btn-secondary" id="btn-close-assignment-practice-modal">닫기</button>
+        <button class="btn-action" id="btn-save-assignment-answer">과제 답변 저장하기</button>
+      </div>
+    </div>
+  </div>
+
+<!-- 5. 생기부 AI 산정근거 상세 모달 창 -->
   <div class="modal-overlay" id="modal-score-details">
     <div class="modal-container" style="max-width: 950px; width: 90%;">
       <div class="modal-header">
