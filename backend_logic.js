@@ -625,7 +625,7 @@ async function evaluateStudentRecord(studentId, recordText) {
       const Array = window.Array || global.Array;
       const String = window.String || global.String;
       const JSON = window.JSON || global.JSON;
-      const cards = generateScoreCardsData(finalParsedData, evaluation.scores);
+      const cards = generateScoreCardsData(finalParsedData, evaluation);
       cards.forEach((c, idx) => {
         legacyReport += `### [항목 ${idx + 1}] ${c.title.replace(/^\d+\.\s*/, '')}\n`;
         legacyReport += `- **판정 결과 및 획득 점수**: ${c.score} / ${c.max} 점\n`;
@@ -1493,7 +1493,7 @@ async function getScoreDetailsBasis(payload) {
     try {
       scoreDetails = typeof record.score_details_json === 'string' ? JSON.parse(record.score_details_json) : record.score_details_json;
       const calcRes = calculateRecordScore(scoreDetails);
-      scoreCards = generateScoreCardsData(scoreDetails, calcRes.scores, '관리자');
+      scoreCards = generateScoreCardsData(scoreDetails, calcRes, '관리자');
     } catch(e) {
       console.error('Error generating score cards:', e);
     }
