@@ -3610,7 +3610,8 @@ function renderScoreBasisCards(cards, role) {
       descHtml = '<p style="font-size: 14px; color: var(--text-muted); margin: 6px 0;">' + spec.desc + '</p>';
     }
     if (role === '관리자' && spec.range) {
-      descHtml += '<div style="margin: 6px 0 8px 0; display: flex; align-items: flex-start; gap: 6px;"><span style="flex-shrink: 0; padding: 3px 6px; font-size: 11px; font-weight: bold; color: #fff; background-color: var(--color-primary); border-radius: 4px; line-height: 1;"><i class="fa-solid fa-magnifying-glass" style="margin-right: 3px;"></i>탐색</span><div style="font-size: 12px; color: var(--text-muted); line-height: 1.35; word-break: keep-all; margin-top: 1px;">' + spec.range.replace('🔍 탐색 범위: ', '') + '</div></div>';
+let cleanedRange = spec.range.replace(/🔍/g, '').replace('탐색 범위:', '').trim();
+      descHtml += '<div style="margin: 6px 0 8px 0; display: flex; align-items: flex-start; gap: 6px;"><span style="flex-shrink: 0; font-size: 12px; font-weight: bold; color: var(--color-primary); line-height: 1.35;">🎯 분석 범위 :</span><div style="font-size: 12px; color: var(--text-muted); line-height: 1.35; word-break: keep-all;">' + cleanedRange + '</div></div>';
     }
 
     card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;">' +
