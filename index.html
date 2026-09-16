@@ -574,13 +574,11 @@
   <div class="modal-overlay" id="modal-interview-practice">
     <div class="modal-container">
       <div class="modal-header">
-        <div style="display: flex; flex-direction: column;">
-          <h3 id="interview-modal-title">면접 예상 질문 연습 및 답변 기록</h3>
-          <div id="changed-questions-indicator" style="margin-top: 8px;"></div>
-        </div>
+        <h3 id="interview-modal-title">면접 예상 질문 연습 및 답변 기록</h3>
         <button class="btn-close" id="btn-close-interview-modal">&times;</button>
       </div>
       <div class="modal-body" style="overflow-y: hidden; padding: 24px; display: flex; flex-direction: column;">
+        <div id="changed-questions-indicator" style="margin-bottom: 16px;"></div>
         <div class="ps-editor-grid" style="flex: 1; min-height: 0; display: grid;">
           
           <!-- 좌측: 질문 리스트 선택창 -->
@@ -625,13 +623,11 @@
   <div class="modal-overlay" id="modal-assignment-practice">
     <div class="modal-container" style="max-width: 1000px; width: 95%;">
       <div class="modal-header">
-        <div style="display: flex; flex-direction: column;">
-          <h3 id="assignment-modal-title" style="margin: 0;">📝 공통과제 연습 및 답변 기록</h3>
-          <div id="assignment-status-board" style="margin-top: 8px; display: none;"></div>
-        </div>
+        <h3 id="assignment-modal-title" style="margin: 0;">📝 공통과제 연습 및 답변 기록</h3>
         <button class="btn-close" id="btn-close-assignment-modal">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 15px; height: 700px; max-height: 80vh;">
+        <div id="assignment-status-board" style="display: none;"></div>
 
         <!-- 하단 좌우 패널 래퍼 -->
         <div style="display: flex; gap: 24px; flex: 1; min-height: 0;">

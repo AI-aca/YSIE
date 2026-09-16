@@ -2205,9 +2205,10 @@ async function openInterviewPractice(studentLink, mode) {
           tdLeft.style.lineHeight = '1.6';
           tdLeft.style.wordBreak = 'keep-all';
           tdLeft.style.verticalAlign = 'top';
-          // 🎯 출제 의도 부분 절삭
+          // 🎯 출제 의도 부분 절삭 (과학고 원본 정규식 및 title 추출 로직 완벽 복원)
+          let cleanTitle = (q.titleHtml || q.title).replace(/color:\s*var\(--color-primary\);/g, 'color: #16a34a; font-weight: bold;');
           let displayBody = q.body.replace(/\n\n🎯 출제 의도:[\s\S]*?(?=(\n\n🔗 꼬리 질문:|$))/g, '');
-          tdLeft.innerHTML = `<div style="font-weight: bold; margin-bottom: 10px; color: #16a34a; border-bottom: 1px solid #eee; padding-bottom: 5px;">${q.title.split('.')[0]}</div><div style="background-color: #f8fafc; border-radius: 4px; padding: 8px; white-space: pre-wrap;">${displayBody}</div>`;
+          tdLeft.innerHTML = `<div style="font-weight: bold; margin-bottom: 10px; color: #16a34a; border-bottom: 1px solid #eee; padding-bottom: 5px;">${cleanTitle}</div><div style="background-color: #f8fafc; border-radius: 4px; padding: 8px; white-space: pre-wrap;">${displayBody}</div>`;
           
           const tdRight = document.createElement('td');
           tdRight.style.width = '50%';
@@ -4893,11 +4894,13 @@ function updateAssignmentStatusBoard() {
   const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
   
   board.innerHTML = `
-    <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
-      <span style="color: var(--color-primary);">💾 답변이 변경된 과제(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
-    </div>
-    <div style="font-size: 14px; line-height: 1.5; color: #ffffff; font-weight: normal;">
-      🔒 답변의 변경이 없는 과제(저장 미반영) : ${unchangedStr}
+    <div style="padding: 12px 16px; background-color: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;">
+      <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
+        <span style="color: var(--color-primary);">💾 답변이 변경된 과제(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
+      </div>
+      <div style="font-size: 14px; line-height: 1.5; color: #ffffff; font-weight: normal; margin-top: 4px;">
+        🔒 답변의 변경이 없는 과제(저장 미반영) : ${unchangedStr}
+      </div>
     </div>
   `;
   board.style.display = 'block';
