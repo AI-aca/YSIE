@@ -1099,7 +1099,7 @@ function openEditStudent(studentLink) {
   }
 
   
-  document.getElementById('reg-center').value = student.center || '';
+  document.getElementById('reg-center').value = student.center || (SETTINGS_CENTERS.length === 1 ? SETTINGS_CENTERS[0] : '');
   if (document.getElementById('reg-admission-year')) {
     document.getElementById('reg-admission-year').value = student.admissionYear || (new Date().getFullYear() + 1).toString();
   }
