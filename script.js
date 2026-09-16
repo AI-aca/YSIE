@@ -2342,7 +2342,7 @@ function bindEventHandlers() {
       const subMap = {
         dashboard: '2027 외고·국제고 지원자 합격 현황 대시보드',
         info: '학원생 기본 인적사항 및 연락처 조회',
-        record: '생활기록부 점수 160점 만점 대비 채점 상세',
+        record: '생활기록부 점수 160점 만점 대비 채점 상세 (※ 점수 옆의 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)',
         ps: '자기소개서 🚀최종제출 및 이력 롤백 복원 창',
         interview: 'AI 질문 생성 목록 및 학생 구술 답변 연습 관리',
         guide: '목표 외고·국제고 입학요강 열람',
@@ -2352,8 +2352,10 @@ function bindEventHandlers() {
       
       if (CURRENT_MENU === 'record') {
         const cTitle = document.getElementById('content-title');
-    cTitle.style.display = 'block';
-    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <div style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 6px 14px; border-radius: 20px; font-weight: bold; margin-top: 10px; display: block; width: fit-content;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생 <span style="font-size:12px; color:#ccc; margin-left:10px; font-weight:normal;">(※ 생기부 점수 옆 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)</span></div>`;
+    cTitle.style.display = 'flex';
+    cTitle.style.alignItems = 'center';
+    cTitle.style.gap = '14px';
+    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; white-space: nowrap;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생</span>`;
       } else {
         document.getElementById('content-title').textContent = titleMap[CURRENT_MENU] || '초기 화면';
       }
