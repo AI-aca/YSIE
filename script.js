@@ -1870,7 +1870,7 @@ async function openInterviewPractice(studentLink, mode) {
   if (!student) return;
   
   const isPsMode = ACTIVE_INTERVIEW_MODE === "ps";
-  document.getElementById('interview-modal-title').textContent = `${student.name} 학생 예상 면접 질문 연습 (${isPsMode ? '자소서' : '생기부'} 기반)`;
+  document.getElementById('interview-modal-title').innerHTML = `📝 <span style="color: #60a5fa;">${student.name} 학생</span> 예상 면접 질문 연습 (${isPsMode ? '자소서' : '생기부'} 기반)`;
   
 
   
@@ -4959,7 +4959,7 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
   
   const studentInfo = STUDENTS_LIST.find(s => s.studentLink === studentLink);
   const studentName = studentInfo ? studentInfo.name : '학생';
-  if(modalTitle) modalTitle.innerHTML = `📝 <span style="color: #60a5fa;">${studentName}</span> 학생 공통과제 연습 및 답변 기록`;
+  if(modalTitle) modalTitle.innerHTML = `📝 <span style="color: #60a5fa;">${studentName} 학생</span> 공통과제 연습 및 답변 기록`;
 
   ulList.innerHTML = '<li style="padding: 12px; color: #a1a1aa; text-align: center;">불러오는 중...</li>';
   qText.textContent = '데이터를 불러오는 중입니다.';
