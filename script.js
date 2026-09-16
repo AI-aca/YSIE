@@ -593,7 +593,7 @@ function renderMainTable() {
   
   const tableControls = document.querySelector('.table-controls');
   if (tableControls) {
-    if (CURRENT_ROLE === '학생' || CURRENT_MENU === 'guide' || CURRENT_MENU === 'exam' || CURRENT_MENU === 'settings' || CURRENT_MENU === 'user-guide') {
+    if (CURRENT_ROLE === '학생' || CURRENT_MENU === 'guide' || CURRENT_MENU === 'settings' || CURRENT_MENU === 'user-guide') {
       tableControls.style.display = 'none';
     } else {
       tableControls.style.display = 'flex';
@@ -2253,14 +2253,12 @@ function bindEventHandlers() {
             reader.readAsDataURL(file);
           });
 
-          const folderType = CURRENT_MENU === 'guide' ? 'guide' : 'exam';
+          const folderType = 'guide';
           let folderIdStr = '';
           if (folderType === 'guide') {
             folderIdStr = extractDriveId(document.getElementById('settings-drive-guide')?.value || '') || 'admissions';
-          } else {
-            folderIdStr = extractDriveId(document.getElementById('settings-drive-exam')?.value || '') || 'exams';
           }
-
+          
           const res = await ApiClient.post('uploadGeneralPdf', {
             fileName: file.name,
             mimeType: file.type,
@@ -2338,7 +2336,6 @@ function bindEventHandlers() {
         ps: '자기소개서 첨삭 이력',
         interview: '예상 면접 질문 연습',
         guide: '입학요강',
-        exam: '기출문제 (최근 3개년)',
         settings: '시스템 환경 설정',
         'user-guide': '시스템 사용 가이드'
       };
@@ -2349,7 +2346,6 @@ function bindEventHandlers() {
         ps: '자기소개서 🚀최종제출 및 이력 롤백 복원 창',
         interview: 'AI 질문 생성 목록 및 학생 구술 답변 연습 관리',
         guide: '목표 외고·국제고 입학요강 열람',
-        exam: '과거 외고·국제고 기출문제 열람 (최근 3개년)',
         settings: '학교 관리, 비밀번호 변경 및 백엔드 연동 통제',
         'user-guide': '역할 및 권한별 시스템 상세 이용 매뉴얼'
       };
@@ -2390,7 +2386,7 @@ function bindEventHandlers() {
           userGuidePanel.style.display = 'block';
           renderUserGuideContent(); // 사용안내 렌더링
         }
-      } else if (CURRENT_MENU === 'guide' || CURRENT_MENU === 'exam') {
+      } else if (CURRENT_MENU === 'guide') {
         if (tableContainer) tableContainer.style.display = 'none';
         if (tableControls) tableControls.style.display = 'none';
         if (scoreAccordion) scoreAccordion.classList.remove('open');
@@ -4016,9 +4012,6 @@ async function loadPdfFiles(folderType) {
   if (folderType === 'guide') {
     titleEl.textContent = '입학요강 목록';
     folderId = extractDriveId(document.getElementById('settings-drive-guide')?.value || '');
-  } else if (folderType === 'exam') {
-    titleEl.textContent = '기출문제 목록';
-    folderId = extractDriveId(document.getElementById('settings-drive-exam')?.value || '');
   }
   
   listEl.innerHTML = `<div class="text-muted" style="text-align:center; padding:20px;">
@@ -4029,7 +4022,7 @@ async function loadPdfFiles(folderType) {
   
   setTimeout(async () => {
     if (!folderId) {
-      folderId = (folderType === 'guide') ? 'admissions' : 'exams';
+      folderId = 'admissions';
     }
     
     try {
