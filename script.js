@@ -4780,6 +4780,7 @@ async function renderSettingsAssignments() {
     header.style.display = 'flex';
     header.style.gap = '15px';
     header.style.alignItems = 'center';
+    header.style.marginBottom = '15px';
     
     const labelSpan = document.createElement('span');
     labelSpan.style.color = 'var(--text-muted)';
@@ -4843,6 +4844,7 @@ async function renderSettingsAssignments() {
       qItem.style.display = 'flex';
       qItem.style.gap = '10px';
       qItem.style.alignItems = 'flex-start';
+      qItem.style.marginBottom = '12px';
       
       const handle = document.createElement('div');
       handle.className = 'drag-handle';
