@@ -662,7 +662,7 @@ async function evaluateStudentRecord(studentId, recordText) {
       console.error('record_basis DB 저장 오류:', basisErr);
       throw new Error('record_basis DB 저장 실패: ' + basisErr.message);
     }
-    const { error: studentScoreErr } = await window.supabaseClient.from('students').update({ record_score_ai: displayScore }).eq('id', student.id);
+    const { error: studentScoreErr } = await window.supabaseClient.from('students').update({ record_score_ai: totalScoreStr }).eq('id', student.id);
     if (studentScoreErr) console.error('students score update error:', studentScoreErr);
 
     return { success: true, score: totalScore, analysisReport: analysisText, scoreDetails: finalParsedData };
