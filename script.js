@@ -2156,8 +2156,10 @@ async function openInterviewPractice(studentLink, mode) {
     updateChangedIndicator();
     
     // 창 열림과 동시에 1번 항목 강제 클릭 (공통과제 UI와 동일하게 자동 포커스)
-    if (qList.children.length > 0) {
-      qList.children[0].click();
+    // 관리자 모드일 경우 children[0]이 '전체 초기화' 버튼이므로, 질문 버튼(.btn-secondary)을 명확히 찾아 클릭
+    const firstQuestionBtn = qList.querySelector('.btn-secondary');
+    if (firstQuestionBtn) {
+      firstQuestionBtn.click();
     }
   }
   
