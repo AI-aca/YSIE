@@ -2352,10 +2352,8 @@ function bindEventHandlers() {
       
       if (CURRENT_MENU === 'record') {
         const cTitle = document.getElementById('content-title');
-    cTitle.style.display = 'flex';
-    cTitle.style.alignItems = 'center';
-    cTitle.style.whiteSpace = 'nowrap';
-    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; margin-left: 14px; display: flex; align-items: center;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생 <span style="font-size:12px; color:#ccc; margin-left:10px; font-weight:normal;">(※ 생기부 점수 옆 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)</span></span>`;
+    cTitle.style.display = 'block';
+    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <div style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 6px 14px; border-radius: 20px; font-weight: bold; margin-top: 10px; display: inline-block;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생 <span style="font-size:12px; color:#ccc; margin-left:10px; font-weight:normal;">(※ 생기부 점수 옆 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)</span></div>`;
       } else {
         document.getElementById('content-title').textContent = titleMap[CURRENT_MENU] || '초기 화면';
       }

@@ -104,14 +104,14 @@
     <main id="main-content">
 
       
-      <div class="header-title-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+      <div class="header-title-section" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
         <div>
           <h2 id="content-title">초기 화면 (대시보드)</h2>
           <p class="subtitle" id="content-subtitle">외고·국제고 지원자 합격 현황 대시보드</p>
         </div>
         
         <!-- 우측 액션 및 제어 영역 통합 -->
-        <div style="display: flex; gap: 12px; align-items: center;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-shrink: 0; flex-wrap: wrap;">
           <div class="header-actions" id="main-header-actions" style="margin: 0; padding: 0;">
             <!-- 동적 액션 버튼 컨테이너 -->
           </div>
@@ -122,7 +122,7 @@
               <input type="text" id="search-student" placeholder="학생명 또는 학교 검색...">
             </div>
             <div class="filter-actions" id="table-filter-area" style="display: flex; align-items: center; gap: 8px;">
-              <label id="wrapper-hide-hidden" style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); cursor: pointer; margin-right: 8px;">
+              <label id="wrapper-hide-hidden" style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); cursor: pointer; margin-right: 8px; white-space: nowrap;">
                 <input type="checkbox" id="checkbox-hide-hidden" checked> 숨김학생 감추기
               </label>
               <select id="filter-admission-year" class="form-control" style="width: auto; padding: 4px 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
