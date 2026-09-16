@@ -585,14 +585,15 @@ async function evaluateStudentRecord(studentId, recordText) {
     }
 
     const evaluation = calculateRecordScore(finalParsedData);
-    const totalScore = evaluation.totalScore;
+    const numericTotalScore = evaluation.englishScore - evaluation.deduction;
+    const totalScoreStr = evaluation.totalScore;
     const { area1, area2, area3 } = evaluation;
 
     let suitability = "서류 탈락 유력(지원 불가)";
-    if (totalScore >= 158) suitability = "지원 매우 안정적(적극 권장)";
-    else if (totalScore >= 154) suitability = "지원 다소 안정적(권장)";
-    else if (totalScore >= 150) suitability = "지원 다소 불안정(소극 권장)";
-    else if (totalScore >= 140) suitability = "지원 불안정(비권장)";
+    if (numericTotalScore >= 158) suitability = "지원 매우 안정적(적극 권장)";
+    else if (numericTotalScore >= 154) suitability = "지원 다소 안정적(권장)";
+    else if (numericTotalScore >= 150) suitability = "지원 다소 불안정(소극 권장)";
+    else if (numericTotalScore >= 140) suitability = "지원 불안정(비권장)";
     
     const sName = student.student_name || student.name || '학생';
     const targetSchoolName = student.target_school || student.targetSchool || '';
@@ -608,12 +609,10 @@ async function evaluateStudentRecord(studentId, recordText) {
     
     const warningMsg = isMissing ? `> 🚨 **[주의] 생기부에 성적이 누락된 학기가 감지되어 대체 알고리즘(<표2> 기준)에 따라 점수를 산출하였습니다.**\n\n` : ``;
 
-    let displayScore = String(totalScore);
     const scoreHeader = `# 📄 ${sName} 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n` +
-                  `> ℹ️ **[평가 기준 안내]** 3학년의 창의적 체험활동, 세부능력 및 특기사항, 행동특성 및 종합의견은 원서 제출 기간 전에 모두 파악할 수 없기에 미반영된 상태로 분석 및 산정된 점수이며, 지원 학교 적합도 역시 이 기준을 반영하였습니다.\n\n` +
                   warningMsg +
                         `### 🎯 채점 결과 요약\n` +
-                        `* **🔥 종합 생기부 평가 점수**: ${displayScore} 점 / 160점 만점\n` +
+                        `* **🔥 종합 생기부 평가 점수**: ${totalScoreStr} / 160점 만점\n` +
                         `* **🚀 지원 학교 적합도**: ${suitability}\n\n---\n`;    
                         
     let overallText = finalParsedData.overallReport || "총평 데이터가 없습니다.";
