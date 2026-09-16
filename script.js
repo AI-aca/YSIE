@@ -3885,7 +3885,7 @@ function renderUserGuideContent() {
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>학생 수정:</strong> 목록 우측 끝의 <code>[수정]</code> 버튼을 눌러 연락처나 담당 강사를 변경할 수 있습니다.</li>
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>생기부 업로드 및 원본 열람:</strong> 대시보드의 '생기부' 열에서 아이콘을 눌러 PDF를 업로드하면, <code>[보기]</code> 버튼이 생성되어 언제든 원본을 열람할 수 있습니다.</li>
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>생기부 산정 근거 확인:</strong> 학생의 <strong>생기부 점수</strong>를 클릭하면 AI가 분석한 영어/국어/사회 교과 및 출결 등 세부 항목 요약과 함께 상세한 <strong>점수 산정 근거</strong> 창이 열립니다.</li>
-                <li style="font-size: 14px; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 2학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</li>
+                <li style="font-size: 14px; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 1학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</li>
               </ul>
             </div>
           </div>
