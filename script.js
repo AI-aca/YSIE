@@ -4955,8 +4955,13 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
   const qText = document.getElementById('assignment-question-text');
   const aText = document.getElementById('assignment-answer-textarea');
   const btnSave = document.getElementById('btn-save-assignment-answer');
+  const modalTitle = document.getElementById('assignment-modal-title');
   
-  ulList.innerHTML = '<li style="padding: 12px; color: #aaa;">로딩 중...</li>';
+  const studentInfo = STUDENTS_LIST.find(s => s.studentLink === studentLink);
+  const studentName = studentInfo ? studentInfo.name : '학생';
+  if(modalTitle) modalTitle.innerHTML = `📝 <span style="color: #60a5fa;">${studentName}</span> 학생 공통과제 연습 및 답변 기록`;
+
+  ulList.innerHTML = '<li style="padding: 12px; color: #a1a1aa; text-align: center;">불러오는 중...</li>';
   qText.textContent = '데이터를 불러오는 중입니다.';
   aText.value = '';
   CURRENT_ASSIGNMENT_ANSWERS = {};
