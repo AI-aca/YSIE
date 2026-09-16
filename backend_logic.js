@@ -981,11 +981,6 @@ async function getSettings() {
       settings.forEach(s => { 
         if (s.setting_key === 'schools') {
           try { schools = JSON.parse(s.setting_value); } catch(e){}
-        } else if (s.setting_key === 'TargetSchools') {
-          // schools가 비어있을 때만 TargetSchools를 로드하여 덮어쓰기 방지
-          if (!schools || schools.length === 0) {
-            try { schools = JSON.parse(s.setting_value); } catch(e){}
-          }
         } else {
           basic[s.setting_key] = s.setting_value;
         }
@@ -1600,10 +1595,6 @@ async function saveSettings(payload) {
     if (settingsData.schools && Array.isArray(settingsData.schools)) {
     await window.supabaseClient.from('settings').upsert({
       setting_key: 'schools',
-      setting_value: JSON.stringify(settingsData.schools)
-    }, { onConflict: 'setting_key' });
-    await window.supabaseClient.from('settings').upsert({
-      setting_key: 'TargetSchools',
       setting_value: JSON.stringify(settingsData.schools)
     }, { onConflict: 'setting_key' });
   }
