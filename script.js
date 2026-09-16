@@ -4726,9 +4726,52 @@ async function renderSettingsAssignments() {
   if(!container) return;
   container.innerHTML = '';
   
+  // [학년도 필터 UI 추가]
+  const allYears = Array.from(new Set(SETTINGS_COMMON_ASSIGNMENTS.map(s => s.year || '미지정'))).sort((a,b) => b.localeCompare(a));
+  if (!window.currentAssignmentYearFilter && allYears.length > 0) {
+    window.currentAssignmentYearFilter = new Set([allYears[0]]);
+  } else if (!window.currentAssignmentYearFilter) {
+    window.currentAssignmentYearFilter = new Set();
+  }
+
+  if (allYears.length > 0) {
+    const filterDiv = document.createElement('div');
+    filterDiv.style.cssText = "margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 5px; display:flex; gap: 15px; align-items:center; flex-wrap:wrap;";
+    let filterHtml = '<strong style="color:var(--text-muted);"><i class="fa-solid fa-filter"></i> 학년도 필터:</strong>';
+    allYears.forEach(y => {
+       const checked = window.currentAssignmentYearFilter.has(y) ? 'checked' : '';
+       filterHtml += `<label style="cursor:pointer; display:flex; align-items:center; gap:5px; color:#fff; font-size:14px;"><input type="checkbox" class="assign-year-filter-cb" value="${y}" ${checked}> ${y === '미지정' ? '미지정' : y + '학년도'}</label>`;
+    });
+    filterDiv.innerHTML = filterHtml;
+    container.appendChild(filterDiv);
+
+    filterDiv.addEventListener('change', (e) => {
+       if (e.target.classList.contains('assign-year-filter-cb')) {
+         if (e.target.checked) window.currentAssignmentYearFilter.add(e.target.value);
+         else window.currentAssignmentYearFilter.delete(e.target.value);
+         
+         const blocks = container.querySelectorAll('.assign-setting-block');
+         blocks.forEach(block => {
+           const yInput = block.querySelector('.assign-year-input');
+           const yVal = (yInput && yInput.value.trim()) || '미지정';
+           if (window.currentAssignmentYearFilter.has(yVal)) {
+             block.style.display = 'block';
+           } else {
+             block.style.display = 'none';
+           }
+         });
+       }
+    });
+  }
+  
   SETTINGS_COMMON_ASSIGNMENTS.forEach((assignData, yearIndex) => {
     const box = document.createElement('div');
-    box.className = 'school-config-box';
+    box.className = 'school-config-box assign-setting-block';
+    
+    const blockYear = assignData.year || '미지정';
+    if (!window.currentAssignmentYearFilter.has(blockYear)) {
+      box.style.display = 'none';
+    }
     box.style.marginBottom = '15px';
     
     // Header (Year)
@@ -4746,7 +4789,7 @@ async function renderSettingsAssignments() {
     
     const yearInput = document.createElement('input');
     yearInput.type = 'text';
-    yearInput.className = 'form-control';
+    yearInput.className = 'form-control assign-year-input';
     yearInput.style.width = '100px';
     yearInput.style.fontWeight = 'bold';
     yearInput.style.color = '#eab308';
