@@ -4789,7 +4789,7 @@ async function renderSettingsAssignments() {
     
     const yearInput = document.createElement('input');
     yearInput.type = 'text';
-    yearInput.className = 'form-control assign-year-input';
+    yearInput.className = 'form-control school-year-input assign-year-input'; // Added school-year-input to inherit exact CSS
     yearInput.style.width = '100px';
     yearInput.style.fontWeight = 'bold';
     yearInput.style.color = '#eab308';
