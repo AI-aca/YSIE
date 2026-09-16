@@ -2060,11 +2060,13 @@ async function openInterviewPractice(studentLink, mode) {
       const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
       
       indicator.innerHTML = `
-        <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
-          <span style="color: var(--color-primary);">💾 답변이 변경된 질문(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
-        </div>
-        <div style="font-size: 14px; line-height: 1.5; color: #ffffff; font-weight: normal;">
-          🔒 답변의 변경이 없는 질문(저장 미반영) : ${unchangedStr}
+        <div style="margin-top: 12px; padding: 12px 16px; background-color: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;">
+          <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
+            <span style="color: var(--color-primary);">💾 답변이 변경된 질문(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
+          </div>
+          <div style="font-size: 14px; line-height: 1.5; color: #ffffff; font-weight: normal; margin-top: 4px;">
+            🔒 답변의 변경이 없는 질문(저장 미반영) : ${unchangedStr}
+          </div>
         </div>
       `;
     }
@@ -2155,7 +2157,112 @@ async function openInterviewPractice(studentLink, mode) {
     // 모달 렌더링 완료 시 최초 1회 상태 표시줄 강제 업데이트 (레이아웃 Shift 방지)
     updateChangedIndicator();
     
+    // PDF 다운로드 로직 삽입 (과학고 원본 이식)
+    const btnDownloadInterviewPdf = document.getElementById('btn-download-interview-pdf');
+    if (btnDownloadInterviewPdf) {
+      btnDownloadInterviewPdf.onclick = async () => {
+        if (!questionSets || questionSets.length === 0) {
+          alert('생성된 예상 질문이 없어 다운로드할 수 없습니다.');
+          return;
+        }
+        
+        const sName = student.name;
+        const outName = `[${isPsMode ? '자소서' : '생기부'} 기반 예상 질문] ${sName}.pdf`;
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.padding = '20px';
+        pdfContainer.style.fontFamily = 'Pretendard, -apple-system, sans-serif';
+        pdfContainer.style.color = '#000000';
+        pdfContainer.style.backgroundColor = '#ffffff';
+
+        const titleEl = document.createElement('h2');
+        titleEl.innerText = `${sName} 학생 ${isPsMode ? '자소서' : '생기부'} 기반 예상 면접 질문`;
+        titleEl.style.textAlign = 'center';
+        titleEl.style.marginBottom = '30px';
+        titleEl.style.borderBottom = '2px solid #333';
+        titleEl.style.paddingBottom = '10px';
+        titleEl.style.fontSize = '15px';
+        pdfContainer.appendChild(titleEl);
+
+        const listContainer = document.createElement('div');
+        listContainer.style.width = '100%';
+
+        questionSets.forEach(q => {
+          const table = document.createElement('table');
+          table.style.width = '100%';
+          table.style.borderCollapse = 'collapse';
+          table.style.pageBreakInside = 'avoid';
+          table.style.marginTop = '15px';
+          table.style.marginBottom = '15px';
+          
+          const tbody = document.createElement('tbody');
+          const tr = document.createElement('tr');
+          
+          const tdLeft = document.createElement('td');
+          tdLeft.style.width = '50%';
+          tdLeft.style.padding = '10px';
+          tdLeft.style.border = '1px solid #ccc';
+          tdLeft.style.fontSize = '11px';
+          tdLeft.style.lineHeight = '1.6';
+          tdLeft.style.wordBreak = 'keep-all';
+          tdLeft.style.verticalAlign = 'top';
+          // 🎯 출제 의도 부분 절삭
+          let displayBody = q.body.replace(/\n\n🎯 출제 의도:[\s\S]*?(?=(\n\n🔗 꼬리 질문:|$))/g, '');
+          tdLeft.innerHTML = `<div style="font-weight: bold; margin-bottom: 10px; color: #16a34a; border-bottom: 1px solid #eee; padding-bottom: 5px;">${q.title.split('.')[0]}</div><div style="background-color: #f8fafc; border-radius: 4px; padding: 8px; white-space: pre-wrap;">${displayBody}</div>`;
+          
+          const tdRight = document.createElement('td');
+          tdRight.style.width = '50%';
+          tdRight.style.padding = '10px';
+          tdRight.style.border = '1px solid #ccc';
+          tdRight.style.fontSize = '11px';
+          tdRight.style.lineHeight = '1.6';
+          tdRight.style.whiteSpace = 'pre-wrap';
+          tdRight.style.verticalAlign = 'top';
+          const answerText = (answersObj[q.title] || '').trim();
+          if (answerText) {
+            tdRight.textContent = answerText;
+          } else {
+            tdRight.innerHTML = `<span style="color: #999; font-style: italic;">작성된 답변이 없습니다.</span>`;
+          }
+          
+          tr.appendChild(tdLeft);
+          tr.appendChild(tdRight);
+          tbody.appendChild(tr);
+          table.appendChild(tbody);
+          listContainer.appendChild(table);
+        });
+        pdfContainer.appendChild(listContainer);
+        
+        const opt = {
+          margin: 15,
+          filename: outName,
+          image: { type: 'jpeg', quality: 1 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        const oldText = btnDownloadInterviewPdf.innerHTML;
+        btnDownloadInterviewPdf.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성 중...';
+        btnDownloadInterviewPdf.disabled = true;
+
+        try {
+          if (typeof html2pdf !== 'undefined') {
+            await html2pdf().set(opt).from(pdfContainer).save();
+          } else {
+            alert('PDF 변환 라이브러리를 불러오지 못했습니다.');
+          }
+        } catch(err) {
+          console.error("PDF 다운로드 에러:", err);
+          alert('PDF 다운로드 중 오류가 발생했습니다.');
+        } finally {
+          btnDownloadInterviewPdf.innerHTML = oldText;
+          btnDownloadInterviewPdf.disabled = false;
+        }
+      };
+    }
+
     // 창 열림과 동시에 1번 항목 강제 클릭 (공통과제 UI와 동일하게 자동 포커스)
+
     // 관리자 모드일 경우 children[0]이 '전체 초기화' 버튼이므로, 질문 버튼(.btn-secondary)을 명확히 찾아 클릭
     const firstQuestionBtn = qList.querySelector('.btn-secondary');
     if (firstQuestionBtn) {
@@ -3545,15 +3652,17 @@ async function openScoreDetailsModal(studentLink) {
       // 프론트엔드 UI에서는 ADMIN_ONLY 마크다운 텍스트 블록 전체를 무조건 날려버림 (아래 예쁜 그리드 UI 카드로 대체되므로 중복 표시 방지)
       cleanReport = cleanReport.replace(/\n*<!-- ADMIN_ONLY_START -->[\s\S]*?<!-- ADMIN_ONLY_END -->\n*(?=-{3})/g, '\n');
 
-      // 타이틀 색상 변경 및 성적 자동 대체 안내 경고창 렌더링 시점에 즉시 주입 (기존 과거 DB 데이터 소급 적용)
-      cleanReport = cleanReport.replace(
-        /# 📄 (.*?) 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서/,
-        `# 📄 <span style="color: #60a5fa;">$1 학생</span> 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n<div style="margin: 15px 0; padding: 12px; background: rgba(255, 60, 60, 0.1); border-left: 4px solid #ff4444; border-radius: 4px; font-size: 13px; color: #ffcccc; line-height: 1.5;"><strong>🚨 성적 자동 대체 안내:</strong> 교육부 공식 입학요강 지침에 따라, 생기부에 아직 기재되지 않은 누락 학기(예: 1-2학기, 3-2학기 등) 성적은 <strong>가장 인접한 동일 학년 학기 성적으로 자동 대체 됩니다.</strong></div>\n`
+      let parsedHtml = parseMarkdownToHtml(cleanReport);
+
+      // 타이틀 색상 변경 및 성적 자동 대체 안내 경고창 렌더링 시점에 즉시 주입 (안전하게 HTML 변환 후 처리)
+      parsedHtml = parsedHtml.replace(
+        /(<h2[^>]*>📄 )(.*?) 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서(<\/h2>)/,
+        `$1<span style="color: #60a5fa;">$2 학생</span> 외고·국제고 입학 대비 생기부 정밀 평가 보고서$3\n<div style="margin: 15px 0; padding: 12px; background: rgba(255, 60, 60, 0.1); border-left: 4px solid #ff4444; border-radius: 4px; font-size: 13px; color: #ffcccc; line-height: 1.5;"><strong>🚨 성적 자동 대체 안내:</strong> 교육부 공식 입학요강 지침에 따라, 생기부에 아직 기재되지 않은 누락 학기(예: 1-2학기, 3-2학기 등) 성적은 <strong>가장 인접한 동일 학년 학기 성적으로 자동 대체 됩니다.</strong></div>\n`
       );
 
       document.getElementById('score-details-report-text').innerHTML = `
         <strong style="display: block; margin-bottom: 8px; color: var(--color-primary);"><i class="fa-solid fa-robot"></i> AI 종합 평가 리포트</strong>
-        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 6px; line-height: 1.6;">${parseMarkdownToHtml(cleanReport)}</div>
+        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 6px; line-height: 1.6;">${parsedHtml}</div>
       `;
       
       const details = res.scoreDetails || {};
@@ -5123,6 +5232,108 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
       document.getElementById('btn-save-assignment-answer').style.display = 'none';
     } else {
       document.getElementById('btn-save-assignment-answer').style.display = 'inline-block';
+    }
+
+    // PDF 다운로드 로직 삽입 (공통과제 구조 맞춤형)
+    const btnDownloadAssignmentPdf = document.getElementById('btn-download-assignment-pdf');
+    if (btnDownloadAssignmentPdf) {
+      btnDownloadAssignmentPdf.onclick = async () => {
+        if (!questions || questions.length === 0) {
+          alert('생성된 과제가 없어 다운로드할 수 없습니다.');
+          return;
+        }
+        
+        const sName = studentName;
+        const outName = `[공통과제] ${sName}.pdf`;
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.padding = '20px';
+        pdfContainer.style.fontFamily = 'Pretendard, -apple-system, sans-serif';
+        pdfContainer.style.color = '#000000';
+        pdfContainer.style.backgroundColor = '#ffffff';
+
+        const titleEl = document.createElement('h2');
+        titleEl.innerText = `${sName} 학생 공통과제 질문 및 답변`;
+        titleEl.style.textAlign = 'center';
+        titleEl.style.marginBottom = '30px';
+        titleEl.style.borderBottom = '2px solid #333';
+        titleEl.style.paddingBottom = '10px';
+        titleEl.style.fontSize = '15px';
+        pdfContainer.appendChild(titleEl);
+
+        const listContainer = document.createElement('div');
+        listContainer.style.width = '100%';
+
+        questions.forEach(q => {
+          const table = document.createElement('table');
+          table.style.width = '100%';
+          table.style.borderCollapse = 'collapse';
+          table.style.pageBreakInside = 'avoid';
+          table.style.marginTop = '15px';
+          table.style.marginBottom = '15px';
+          
+          const tbody = document.createElement('tbody');
+          const tr = document.createElement('tr');
+          
+          const tdLeft = document.createElement('td');
+          tdLeft.style.width = '50%';
+          tdLeft.style.padding = '10px';
+          tdLeft.style.border = '1px solid #ccc';
+          tdLeft.style.fontSize = '11px';
+          tdLeft.style.lineHeight = '1.6';
+          tdLeft.style.wordBreak = 'keep-all';
+          tdLeft.style.verticalAlign = 'top';
+          tdLeft.innerHTML = `<div style="font-weight: bold; margin-bottom: 10px; color: #16a34a; border-bottom: 1px solid #eee; padding-bottom: 5px;">${q.label}</div><div style="background-color: #f8fafc; border-radius: 4px; padding: 8px; white-space: pre-wrap;">${q.content}</div>`;
+          
+          const tdRight = document.createElement('td');
+          tdRight.style.width = '50%';
+          tdRight.style.padding = '10px';
+          tdRight.style.border = '1px solid #ccc';
+          tdRight.style.fontSize = '11px';
+          tdRight.style.lineHeight = '1.6';
+          tdRight.style.whiteSpace = 'pre-wrap';
+          tdRight.style.verticalAlign = 'top';
+          const answerText = (CURRENT_ASSIGNMENT_ANSWERS[q.label] || '').trim();
+          if (answerText) {
+            tdRight.textContent = answerText;
+          } else {
+            tdRight.innerHTML = `<span style="color: #999; font-style: italic;">작성된 답변이 없습니다.</span>`;
+          }
+          
+          tr.appendChild(tdLeft);
+          tr.appendChild(tdRight);
+          tbody.appendChild(tr);
+          table.appendChild(tbody);
+          listContainer.appendChild(table);
+        });
+        pdfContainer.appendChild(listContainer);
+        
+        const opt = {
+          margin: 15,
+          filename: outName,
+          image: { type: 'jpeg', quality: 1 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        const oldText = btnDownloadAssignmentPdf.innerHTML;
+        btnDownloadAssignmentPdf.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성 중...';
+        btnDownloadAssignmentPdf.disabled = true;
+
+        try {
+          if (typeof html2pdf !== 'undefined') {
+            await html2pdf().set(opt).from(pdfContainer).save();
+          } else {
+            alert('PDF 변환 라이브러리를 불러오지 못했습니다.');
+          }
+        } catch(err) {
+          console.error("PDF 다운로드 에러:", err);
+          alert('PDF 다운로드 중 오류가 발생했습니다.');
+        } finally {
+          btnDownloadAssignmentPdf.innerHTML = oldText;
+          btnDownloadAssignmentPdf.disabled = false;
+        }
+      };
     }
 
     // 첫 번째 탭 강제 클릭
