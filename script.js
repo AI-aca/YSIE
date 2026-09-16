@@ -1542,16 +1542,18 @@ function renderChecklistToHTML(jsonString) {
         }
       });
 
-      let rows = '';
       for (const [groupName, items] of Object.entries(groups)) {
         if (items.length === 0) continue;
         
-        rows += `
-          <div style="display: contents;">
-            <div style="grid-column: 1 / -1; font-weight: bold; color: #60a5fa; padding: 15px 0 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 10px; font-size: 14px;">
+        let groupHTML = `
+          <div style="margin-bottom: 25px;">
+            <div style="font-weight: bold; color: #60a5fa; margin-bottom: 10px; font-size: 15px; padding-left: 5px;">
               📘 [${groupName}]
             </div>
-          </div>
+            <div style="display: grid; grid-template-columns: 1fr 0.8fr 3.2fr; gap: 10px; background: #1e293b; padding: 15px; border-radius: 8px;">
+              <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">체크 항목</div>
+              <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">상태</div>
+              <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">주요 확인사항</div>
         `;
         
         items.forEach(item => {
@@ -1592,7 +1594,7 @@ function renderChecklistToHTML(jsonString) {
               else if (displayCategory.includes('해결 방안')) displayCategory = '해결 방안<br>구체성';
           }
 
-          rows += `
+          groupHTML += `
             <div style="display: contents;">
               <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; font-size: 13px; font-weight: bold; text-align: center; line-height: 1.5; display: flex; flex-direction: column; justify-content: center;">${displayCategory}</div>
               <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">${badgeHTML}</div>
@@ -1600,16 +1602,14 @@ function renderChecklistToHTML(jsonString) {
             </div>
           `;
         });
+        
+        groupHTML += `
+            </div>
+          </div>
+        `;
+        
+        checklistHTML += groupHTML;
       }
-
-      checklistHTML = `
-        <div style="display: grid; grid-template-columns: 1fr 0.8fr 3.2fr; gap: 10px; background: #1e293b; padding: 15px; border-radius: 8px;">
-          <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">체크 항목</div>
-          <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">상태</div>
-          <div style="font-weight: bold; color: #94a3b8; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.1); text-align: center;">주요 확인사항</div>
-          ${rows}
-        </div>
-      `;
     }
 
     return `<div class="ai-checklist-premium">
