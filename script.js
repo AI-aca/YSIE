@@ -1500,7 +1500,7 @@ function getCharCount(text, schoolName, admissionYear) {
  */
 function renderChecklistToHTML(jsonString) {
   try {
-    const cleanStr = jsonString.replace(/^```(json)?\n?/i, '').replace(/```$/i, '').trim();
+    const cleanStr = jsonString.replace(/^\`\`\`(json)?\n?/i, '').replace(/\`\`\`$/i, '').trim();
     const data = JSON.parse(cleanStr);
     
     let exclusionsHTML = '';
@@ -1519,51 +1519,88 @@ function renderChecklistToHTML(jsonString) {
 
     let checklistHTML = '';
     if (data.checklist && data.checklist.length > 0) {
-      const rows = data.checklist.map(item => {
-        let badgeHTML = '';
-        if (item.status === '완료') {
-          badgeHTML = `<span class="badge" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[완료]</span>`;
-        } else if (item.status === '위기') {
-          badgeHTML = `<span class="badge" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[위기]</span>`;
+      const groups = {
+        '자기주도학습 영역': [],
+        '지원동기 영역': [],
+        '인성 및 갈등관리 영역': [],
+        '독서 및 관점 확장 영역': [],
+        '기타 영역': []
+      };
+      
+      data.checklist.forEach(item => {
+        let cat = item.category || '';
+        if (cat.includes('제목') || cat.includes('시행착오') || cat.includes('탐구 구체성') || cat.includes('주어') || cat.includes('수치') || cat.includes('데이터') || cat.includes('막힌') || cat.includes('학습')) {
+          groups['자기주도학습 영역'].push(item);
+        } else if (cat.includes('관심 계기') || cat.includes('특화 환경') || cat.includes('관심 분야') || cat.includes('탐구 계기') || cat.includes('어학')) {
+          groups['지원동기 영역'].push(item);
+        } else if (cat.includes('상황') || cat.includes('직접 행동') || cat.includes('행동') || cat.includes('태도') || cat.includes('배려') || cat.includes('나눔') || cat.includes('협력') || cat.includes('인성')) {
+          groups['인성 및 갈등관리 영역'].push(item);
+        } else if (cat.includes('비교') || cat.includes('대조') || cat.includes('진로') || cat.includes('학업') || cat.includes('해결 방안') || cat.includes('독서')) {
+          groups['독서 및 관점 확장 영역'].push(item);
         } else {
-          badgeHTML = `<span class="badge" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[보완]</span>`;
+          groups['기타 영역'].push(item);
         }
-        let displayCategory = item.category;
-        switch (displayCategory) {
-          case '제목 적합성': displayCategory = '제목/주제<br>적합성'; break;
-          case '시행착오 및 막힌 지점': displayCategory = '시행착오<br>및<br>막힌 지점'; break;
-          case '구체적 수치/데이터':
-          case '구체적 수치 및 데이터 활용':
-          case '탐구 구체성 및 데이터 활용': displayCategory = '탐구 구체성<br>및<br>데이터 활용'; break;
-          case '주어 및 관점': displayCategory = '주어 및<br>관점'; break;
-          case '탐구 계기 연계': displayCategory = '탐구 계기<br>연계'; break;
-          case '특화 환경 지목': displayCategory = '특화 환경<br>지목'; break;
-          case '관심 분야 명시': displayCategory = '관심 분야<br>명시'; break;
-          case '구체적 상황': displayCategory = '구체적<br>상황'; break;
-          case '본인의 직접 행동': displayCategory = '본인의<br>직접 행동'; break;
-          case '행동 및 태도 변화': displayCategory = '행동 및<br>태도 변화'; break;
-          case '관점의 비교·대조':
-          case '관점의 비교 대조': displayCategory = '관점의<br>비교 대조'; break;
-          case '진로/학업 영향':
-          case '진로 및 학업 영향':
-          case '진로 및 학업 역량': displayCategory = '진로 및<br>학업 역량'; break;
-          case '해결 방안 구체성': displayCategory = '해결 방안<br>구체성'; break;
-          default:
-            if (displayCategory.includes('시행착오 및 막힌 지점')) displayCategory = '시행착오<br>및<br>막힌 지점';
-            else if (displayCategory.includes('구체적 수치')) displayCategory = '구체적 수치<br>및<br>데이터 활용';
-            else if (displayCategory.includes('관점의 비교')) displayCategory = '관점의<br>비교 대조';
-            else if (displayCategory.includes('진로 및 학업') || displayCategory.includes('진로/학업')) displayCategory = '진로 및<br>학업 역량';
-            else if (displayCategory.includes('해결 방안')) displayCategory = '해결 방안<br>구체성';
-        }
+      });
 
-        return `
+      let rows = '';
+      for (const [groupName, items] of Object.entries(groups)) {
+        if (items.length === 0) continue;
+        
+        rows += `
           <div style="display: contents;">
-            <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #e2e8f0; font-size: 13px; font-weight: bold; text-align: center; line-height: 1.5; display: flex; flex-direction: column; justify-content: center;">${displayCategory}</div>
-            <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">${badgeHTML}</div>
-            <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; font-size: 13px; display: flex; flex-direction: column; justify-content: center; line-height: 1.6;">${item.feedback}</div>
+            <div style="grid-column: 1 / -1; font-weight: bold; color: #60a5fa; padding: 15px 0 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 10px; font-size: 14px;">
+              📘 [${groupName}]
+            </div>
           </div>
         `;
-      }).join('');
+        
+        items.forEach(item => {
+          let badgeHTML = '';
+          if (item.status === '완료') {
+            badgeHTML = `<span class="badge" style="background:#10b981; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[완료]</span>`;
+          } else if (item.status === '위기') {
+            badgeHTML = `<span class="badge" style="background:#ef4444; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[위기]</span>`;
+          } else {
+            badgeHTML = `<span class="badge" style="background:#f59e0b; color:#fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">[보완]</span>`;
+          }
+          
+          let displayCategory = item.category;
+          switch (displayCategory) {
+            case '제목 적합성': displayCategory = '제목/주제<br>적합성'; break;
+            case '시행착오 및 막힌 지점': displayCategory = '시행착오<br>및<br>막힌 지점'; break;
+            case '구체적 수치/데이터':
+            case '구체적 수치 및 데이터 활용':
+            case '탐구 구체성 및 데이터 활용': displayCategory = '탐구 구체성<br>및<br>데이터 활용'; break;
+            case '주어 및 관점': displayCategory = '주어 및<br>관점'; break;
+            case '탐구 계기 연계': displayCategory = '탐구 계기<br>연계'; break;
+            case '특화 환경 지목': displayCategory = '특화 환경<br>지목'; break;
+            case '관심 분야 명시': displayCategory = '관심 분야<br>명시'; break;
+            case '구체적 상황': displayCategory = '구체적<br>상황'; break;
+            case '본인의 직접 행동': displayCategory = '본인의<br>직접 행동'; break;
+            case '행동 및 태도 변화': displayCategory = '행동 및<br>태도 변화'; break;
+            case '관점의 비교·대조':
+            case '관점의 비교 대조': displayCategory = '관점의<br>비교 대조'; break;
+            case '진로/학업 영향':
+            case '진로 및 학업 영향':
+            case '진로 및 학업 역량': displayCategory = '진로 및<br>학업 역량'; break;
+            case '해결 방안 구체성': displayCategory = '해결 방안<br>구체성'; break;
+            default:
+              if (displayCategory.includes('시행착오 및 막힌 지점')) displayCategory = '시행착오<br>및<br>막힌 지점';
+              else if (displayCategory.includes('구체적 수치')) displayCategory = '구체적 수치<br>및<br>데이터 활용';
+              else if (displayCategory.includes('관점의 비교')) displayCategory = '관점의<br>비교 대조';
+              else if (displayCategory.includes('진로 및 학업') || displayCategory.includes('진로/학업')) displayCategory = '진로 및<br>학업 역량';
+              else if (displayCategory.includes('해결 방안')) displayCategory = '해결 방안<br>구체성';
+          }
+
+          rows += `
+            <div style="display: contents;">
+              <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; font-size: 13px; font-weight: bold; text-align: center; line-height: 1.5; display: flex; flex-direction: column; justify-content: center;">${displayCategory}</div>
+              <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">${badgeHTML}</div>
+              <div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; font-size: 13px; display: flex; flex-direction: column; justify-content: center; line-height: 1.6;">${item.feedback}</div>
+            </div>
+          `;
+        });
+      }
 
       checklistHTML = `
         <div style="display: grid; grid-template-columns: 1fr 0.8fr 3.2fr; gap: 10px; background: #1e293b; padding: 15px; border-radius: 8px;">
@@ -1584,10 +1621,6 @@ function renderChecklistToHTML(jsonString) {
     return parseMarkdown(jsonString);
   }
 }
-
-/**
- * 특정 문항을 선택했을 때 자소서 및 수기 피드백 내용을 바인드
- */
 function bindPersonalStatementToSelector(compositeQNum) {
   const hData = window.PS_CURRENT_HISTORY;
   if (!hData) return;
