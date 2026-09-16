@@ -3613,7 +3613,7 @@ function renderScoreBasisCards(cards, role) {
     }
     if (role === '관리자' && spec.range) {
 let cleanedRange = spec.range.replace(/🔍/g, '').replace('탐색 범위:', '').trim();
-      descHtml += '<div style="margin: 6px 0 8px 0; display: flex; align-items: flex-start; gap: 6px;"><span style="flex-shrink: 0; font-size: 12px; font-weight: bold; color: var(--color-primary); line-height: 1.35;">🎯 분석 범위 :</span><div style="font-size: 12px; color: var(--text-muted); line-height: 1.35; word-break: keep-all;">' + cleanedRange + '</div></div>';
+      descHtml += '<div style="margin: 12px 0 14px 0; display: flex; align-items: flex-start; gap: 6px;"><span style="flex-shrink: 0; font-size: 13.5px; font-weight: bold; color: var(--color-primary); line-height: 1.4;">🎯 분석 범위 :</span><div style="font-size: 13.5px; color: var(--text-muted); line-height: 1.4; word-break: keep-all;">' + cleanedRange + '</div></div>';
     }
 
     card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;">' +
