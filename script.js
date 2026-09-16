@@ -3545,6 +3545,12 @@ async function openScoreDetailsModal(studentLink) {
       // 프론트엔드 UI에서는 ADMIN_ONLY 마크다운 텍스트 블록 전체를 무조건 날려버림 (아래 예쁜 그리드 UI 카드로 대체되므로 중복 표시 방지)
       cleanReport = cleanReport.replace(/\n*<!-- ADMIN_ONLY_START -->[\s\S]*?<!-- ADMIN_ONLY_END -->\n*(?=-{3})/g, '\n');
 
+      // 타이틀 색상 변경 및 성적 자동 대체 안내 경고창 렌더링 시점에 즉시 주입 (기존 과거 DB 데이터 소급 적용)
+      cleanReport = cleanReport.replace(
+        /# 📄 (.*?) 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서/,
+        `# 📄 <span style="color: #60a5fa;">$1 학생</span> 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n<div style="margin: 15px 0; padding: 12px; background: rgba(255, 60, 60, 0.1); border-left: 4px solid #ff4444; border-radius: 4px; font-size: 13px; color: #ffcccc; line-height: 1.5;"><strong>🚨 성적 자동 대체 안내:</strong> 교육부 공식 입학요강 지침에 따라, 생기부에 아직 기재되지 않은 누락 학기(예: 1-2학기, 3-2학기 등) 성적은 <strong>가장 인접한 동일 학년 학기 성적으로 자동 대체 됩니다.</strong></div>\n`
+      );
+
       document.getElementById('score-details-report-text').innerHTML = `
         <strong style="display: block; margin-bottom: 8px; color: var(--color-primary);"><i class="fa-solid fa-robot"></i> AI 종합 평가 리포트</strong>
         <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 6px; line-height: 1.6;">${parseMarkdownToHtml(cleanReport)}</div>
