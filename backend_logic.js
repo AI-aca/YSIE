@@ -667,7 +667,7 @@ async function evaluateStudentRecord(studentId, recordText) {
     const { error: studentScoreErr } = await window.supabaseClient.from('students').update({ record_score_ai: totalScoreStr }).eq('id', student.id);
     if (studentScoreErr) console.error('students score update error:', studentScoreErr);
 
-    return { success: true, score: totalScore, analysisReport: analysisText, scoreDetails: finalParsedData };
+    return { success: true, score: totalScoreStr, analysisReport: analysisText, scoreDetails: finalParsedData };
   } catch (err) {
     throw err;
   }
