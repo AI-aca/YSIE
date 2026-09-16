@@ -4764,10 +4764,13 @@ function updateAssignmentStatusBoard() {
     const curr = (CURRENT_ASSIGNMENT_ANSWERS[label] || '').trim();
     const orig = (ORIGINAL_ASSIGNMENT_ANSWERS[label] || '').trim();
     
+    // '공통과제1' -> '과제1' 형식으로 변경 ('공통' 글자 제거)
+    const displayName = label.replace(/공통/g, '');
+    
     if (curr !== orig) {
-      changed.push(label);
+      changed.push('📝 ' + displayName);
     } else {
-      unchanged.push(label);
+      unchanged.push('📝 ' + displayName);
     }
   });
 

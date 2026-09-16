@@ -623,13 +623,14 @@
   <div class="modal-overlay" id="modal-assignment-practice">
     <div class="modal-container" style="max-width: 1000px; width: 95%;">
       <div class="modal-header">
-        <h3 id="assignment-modal-title">📝 공통과제 연습 및 답변 기록</h3>
+        <div style="display: flex; flex-direction: column;">
+          <h3 id="assignment-modal-title" style="margin: 0;">📝 공통과제 연습 및 답변 기록</h3>
+          <div id="assignment-status-board" style="margin-top: 8px; display: none;"></div>
+        </div>
         <button class="btn-close" id="btn-close-assignment-modal">&times;</button>
       </div>
       <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 15px; height: 700px; max-height: 80vh;">
-        <!-- 상단 상태판 (전체 문항 표시) -->
-        <div id="assignment-status-board" class="ps-status-board" style="background: rgba(0,0,0,0.4); padding: 10px 15px; border-radius: 4px; font-size: 13px; color: #a1a1aa; border: 1px solid var(--border-color); white-space: pre-wrap; display: none;"></div>
-        
+
         <!-- 하단 좌우 패널 래퍼 -->
         <div style="display: flex; gap: 24px; flex: 1; min-height: 0;">
           <!-- 좌측 과제 목록 패널 -->
