@@ -588,13 +588,6 @@ async function evaluateStudentRecord(studentId, recordText) {
     const numericTotalScore = evaluation.englishScore - evaluation.deduction;
     const totalScoreStr = evaluation.totalScore;
     const { area1, area2, area3 } = evaluation;
-
-    let suitability = "서류 탈락 유력(지원 불가)";
-    if (numericTotalScore >= 158) suitability = "지원 매우 안정적(적극 권장)";
-    else if (numericTotalScore >= 154) suitability = "지원 다소 안정적(권장)";
-    else if (numericTotalScore >= 150) suitability = "지원 다소 불안정(소극 권장)";
-    else if (numericTotalScore >= 140) suitability = "지원 불안정(비권장)";
-    
     const sName = student.student_name || student.name || '학생';
     const targetSchoolName = student.target_school || student.targetSchool || '';
     
@@ -612,8 +605,7 @@ async function evaluateStudentRecord(studentId, recordText) {
     const scoreHeader = `# 📄 ${sName} 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n` +
                   warningMsg +
                         `### 🎯 채점 결과 요약\n` +
-                        `* **🔥 종합 생기부 평가 점수**: ${totalScoreStr} / 160점 만점\n` +
-                        `* **🚀 지원 학교 적합도**: ${suitability}\n\n---\n`;    
+                        `* **🔥 종합 생기부 평가 점수**: ${totalScoreStr} / 160점 만점\n\n---\n`;    
                         
     let overallText = finalParsedData.overallReport || "총평 데이터가 없습니다.";
     let legacyReport = "\n---\n## 🏁 사정관 종합 총평\n" + overallText + "\n\n";
