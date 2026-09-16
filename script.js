@@ -31,7 +31,7 @@ let ACTIVE_EDIT_STUDENT_LINK = ''; // 수정 모드 시 학생 고유링크 저�
 window.updateCenterDropdowns = function() {
   const regCenter = document.getElementById('reg-center');
   if (regCenter) {
-    regCenter.innerHTML = '<option value="">센터 선택</option>';
+    regCenter.innerHTML = SETTINGS_CENTERS.length === 1 ? '' : '<option value="">센터 선택</option>';
     SETTINGS_CENTERS.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c;
