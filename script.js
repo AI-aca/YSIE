@@ -4753,36 +4753,38 @@ function updateAssignmentStatusBoard() {
   let lineStrs = [];
   let validSaveCount = 0;
   
-  Object.keys(CURRENT_ASSIGNMENT_ANSWERS).forEach(label => {
+  // 우측 화면에 떠 있는 모든 탭(문항)의 이름을 가져옵니다.
+  const ulList = document.getElementById('assignment-modal-list');
+  const allLabels = ulList ? Array.from(ulList.children).map(li => li.textContent) : [];
+  
+  const changed = [];
+  const unchanged = [];
+  
+  allLabels.forEach(label => {
     const curr = (CURRENT_ASSIGNMENT_ANSWERS[label] || '').trim();
     const orig = (ORIGINAL_ASSIGNMENT_ANSWERS[label] || '').trim();
-    const isChanged = (curr !== orig);
-    const isEmpty = (curr === '');
     
-    // 숨김 조건: 원본도 빈칸이고 현재도 빈칸이면 아예 표시 안함
-    if (!isChanged && isEmpty && !orig) return;
-    
-    if (isChanged && !isEmpty) {
-      lineStrs.push(`✅ ${label} : 내용 수정됨 (저장 대기)`);
-      validSaveCount++;
-    } else if (!isChanged && !isEmpty) {
-      lineStrs.push(`➖ ${label} : 변경 없음 (기존 유지)`);
-    } else if (!isChanged && isEmpty) {
-      lineStrs.push(`❌ ${label} : 빈 칸 (저장 불가)`);
-    } else if (isChanged && isEmpty) {
-      lineStrs.push(`❌ ${label} : 내용이 빈 칸으로 수정됨 (저장 불가)`);
+    if (curr !== orig) {
+      changed.push(label);
+    } else {
+      unchanged.push(label);
     }
   });
 
-  if (lineStrs.length > 0) {
-    board.textContent = lineStrs.join('\n');
-    board.style.display = 'block';
-  } else {
-    board.textContent = '';
-    board.style.display = 'none';
-  }
+  const changedStr = changed.length > 0 ? changed.join(' / ') : '없음';
+  const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
   
-  if (validSaveCount > 0) {
+  board.innerHTML = `
+    <div style="font-size: 14px; line-height: 1.5; font-weight: bold;">
+      <span style="color: var(--color-primary);">💾 답변이 변경된 과제(저장 반영) : </span><span style="color: #ffeb3b;">${changedStr}</span>
+    </div>
+    <div style="font-size: 14px; line-height: 1.5; color: #ffffff; font-weight: normal;">
+      🔒 답변의 변경이 없는 과제(저장 미반영) : ${unchangedStr}
+    </div>
+  `;
+  board.style.display = 'block';
+  
+  if (changed.length > 0) {
     btnSave.disabled = false;
     btnSave.textContent = '변경된 과제 답변 통째로 저장하기';
   } else {
