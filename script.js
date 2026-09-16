@@ -4772,7 +4772,7 @@ async function renderSettingsAssignments() {
     if (!window.currentAssignmentYearFilter.has(blockYear)) {
       box.style.display = 'none';
     }
-    box.style.marginBottom = '15px';
+    box.style.cssText = "border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; background: rgba(0,0,0,0.1);";
     
     // Header (Year)
     const header = document.createElement('div');
@@ -4813,7 +4813,8 @@ async function renderSettingsAssignments() {
     const btnDelY = document.createElement('button');
     btnDelY.className = 'btn-action';
     btnDelY.style.backgroundColor = 'var(--color-danger)';
-    btnDelY.innerHTML = '<i class="fa-solid fa-trash-can"></i> 학년도 통째로 삭제';
+    btnDelY.style.padding = '6px 10px';
+    btnDelY.innerHTML = '<i class="fa-solid fa-trash"></i> 삭제';
     btnDelY.onclick = () => {
       if(confirm('해당 학년도의 모든 공통과제를 삭제하시겠습니까?')) {
         SETTINGS_COMMON_ASSIGNMENTS.splice(yearIndex, 1);
