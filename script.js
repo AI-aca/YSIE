@@ -185,6 +185,10 @@ const ApiClient = {
           result = await window[action](payload);
       }
       
+      if (result && result.success === false) {
+        throw new Error(result.error || '백엔드 로직 실패');
+      }
+      
       return result;
       
     } catch (error) {
@@ -910,15 +914,15 @@ function renderMainTable() {
         }
 
         let btnGen = '';
-        if (CURRENT_ROLE === '관리자') {
+        if (CURRENT_ROLE === '관리자' && !isAssign) {
           btnGen = `<button class="btn-action" style="padding: 2px 6px; font-size: 14px; margin-left: 6px; background-color: var(--color-primary); display: inline-flex;" onclick="runSingleAIQuestions('${student.studentLink}', '${typeStr}')"><i class="fa-solid fa-comments"></i> ${typeStr} 생성</button>`;
         }
         
         const actionBtnName = CURRENT_ROLE === '학생' ? '연습하기' : '답변 확인';
         const actionBtnIcon = CURRENT_ROLE === '학생' ? 'fa-microphone' : 'fa-eye';
         
-        if (hasQuestions) {
-          td.innerHTML = `<span class="badge success" onclick="openInterviewPractice('${student.studentLink}', '${modeStr}')" style="cursor:pointer;"><i class="fa-solid ${actionBtnIcon}"></i> ${actionBtnName}</span>` + btnGen;
+        if (hasQuestions || isAssign) {
+          td.innerHTML = `<span class="badge success" onclick="${isAssign ? `openAssignmentPractice('${student.studentLink}')` : `openInterviewPractice('${student.studentLink}', '${modeStr}')`}" style="cursor:pointer;"><i class="fa-solid ${actionBtnIcon}"></i> ${actionBtnName}</span>` + btnGen;
         } else {
           td.innerHTML = `<span class="text-muted">미생성</span>` + btnGen;
         }
