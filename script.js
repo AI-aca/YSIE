@@ -2510,10 +2510,14 @@ function bindEventHandlers() {
 
     
     // 초기화 및 readonly 해제
-    ['center','name','school','target-school','parent-phone','student-phone','teacher'].forEach(id => {
+    ['name','school','target-school','parent-phone','student-phone','teacher'].forEach(id => {
       const el = document.getElementById('reg-' + id);
       if (el) el.value = '';
     });
+    const rc = document.getElementById('reg-center');
+    if (rc) {
+      rc.value = SETTINGS_CENTERS.length === 1 ? SETTINGS_CENTERS[0] : '';
+    }
     const refCb = document.getElementById('reg-is-reference');
     if(refCb) refCb.checked = false;
     const phoneInput = document.getElementById('reg-student-phone');
