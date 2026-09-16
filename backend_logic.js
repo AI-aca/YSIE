@@ -349,10 +349,8 @@ async function generateAIQuestions(studentId, type) {
     
     if (type === '자소서') {
       updateObj.statement_questions_json = questionText;
-      updateObj.base_version_ps = '자소서 최신버전';
     } else {
       updateObj.record_questions_json = questionText;
-      updateObj.base_version_record = '생기부 분석 기준';
     }
     
     let questErr;
@@ -1789,10 +1787,8 @@ async function resetAIQuestions(payload) {
       let updateObj = {};
       if (type === '자소서') {
         updateObj.statement_questions_json = '';
-        updateObj.base_version_ps = '';
       } else {
         updateObj.record_questions_json = '';
-        updateObj.base_version_record = '';
       }
       
       // 프론트엔드에서 특정 모드의 답변만 제거하여 보낸 새 answers_json 반영
