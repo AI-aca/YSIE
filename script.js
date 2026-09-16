@@ -2342,7 +2342,7 @@ function bindEventHandlers() {
       const subMap = {
         dashboard: '2027 외고·국제고 지원자 합격 현황 대시보드',
         info: '학원생 기본 인적사항 및 연락처 조회',
-        record: '생활기록부 점수 400점 만점 대비 채점 상세',
+        record: '생활기록부 점수 160점 만점 대비 채점 상세',
         ps: '자기소개서 🚀최종제출 및 이력 롤백 복원 창',
         interview: 'AI 질문 생성 목록 및 학생 구술 답변 연습 관리',
         guide: '목표 외고·국제고 입학요강 열람',
@@ -2351,7 +2351,11 @@ function bindEventHandlers() {
       };
       
       if (CURRENT_MENU === 'record') {
-        document.getElementById('content-title').innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; margin-left: 14px; vertical-align: middle; display: inline-block; transform: translateY(-2px);">🚨 표기 : 국어, 사회에 B 이하가 있는 학생 <span style="font-size:12px; color:#ccc; margin-left:10px; font-weight:normal;">(※ 생기부 점수 옆 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)</span></span>`;
+        const cTitle = document.getElementById('content-title');
+    cTitle.style.display = 'flex';
+    cTitle.style.alignItems = 'center';
+    cTitle.style.whiteSpace = 'nowrap';
+    cTitle.innerHTML = `${titleMap[CURRENT_MENU] || '생활기록부 채점 현황'} <span style="font-size: 14px; background-color: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff6666; padding: 4px 12px; border-radius: 20px; font-weight: bold; margin-left: 14px; display: flex; align-items: center;">🚨 표기 : 국어, 사회에 B 이하가 있는 학생 <span style="font-size:12px; color:#ccc; margin-left:10px; font-weight:normal;">(※ 생기부 점수 옆 등급은 3-2국어, 3-2사회, 3-1국어, 3-1사회 성적 순)</span></span>`;
       } else {
         document.getElementById('content-title').textContent = titleMap[CURRENT_MENU] || '초기 화면';
       }
@@ -3482,7 +3486,7 @@ async function openScoreDetailsModal(studentLink) {
       cleanReport = cleanReport.replace(/\*\*학업역량.*\*\*.*점/g, '**학업역량 (210점 만점)**: ' + area1Math + ' 점');
       cleanReport = cleanReport.replace(/\*\*진로적합성.*\*\*.*점/g, '**진로적합성 (75점 만점)**: ' + area2Math + ' 점');
       cleanReport = cleanReport.replace(/\*\*인성.*\*\*.*점/g, '**인성 (115점 만점)**: ' + area3Math + ' 점');
-            cleanReport = cleanReport.replace(/\*\*🔥 종합 생기부 평가 점수\*\*:.*만점/g, '**🔥 종합 생기부 평가 점수**: ' + finalScoreMath + ' 점 / 400점 만점');
+            cleanReport = cleanReport.replace(/\*\*🔥 종합 생기부 평가 점수\*\*:.*만점/g, '**🔥 종합 생기부 평가 점수**: ' + finalScoreMath + ' 점 / 160점 만점');
 
       // 프론트엔드 UI에서는 ADMIN_ONLY 마크다운 텍스트 블록 전체를 무조건 날려버림 (아래 예쁜 그리드 UI 카드로 대체되므로 중복 표시 방지)
       cleanReport = cleanReport.replace(/\n*<!-- ADMIN_ONLY_START -->[\s\S]*?<!-- ADMIN_ONLY_END -->\n*(?=-{3})/g, '\n');
