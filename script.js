@@ -1569,6 +1569,9 @@ function renderChecklistToHTML(jsonString) {
           let displayCategory = item.category;
           switch (displayCategory) {
             case '제목 적합성': displayCategory = '제목/주제<br>적합성'; break;
+            case '학습/탐구 구체성': displayCategory = '학습/탐구<br>구체성'; break;
+            case '시행착오 및 극복 과정': displayCategory = '시행착오 및<br>극복 과정'; break;
+            case '어학/국제 관심 계기 연계': displayCategory = '어학/국제 관심<br>계기 연계'; break;
             case '시행착오 및 막힌 지점': displayCategory = '시행착오<br>및<br>막힌 지점'; break;
             case '구체적 수치/데이터':
             case '구체적 수치 및 데이터 활용':
@@ -1592,6 +1595,9 @@ function renderChecklistToHTML(jsonString) {
               else if (displayCategory.includes('관점의 비교')) displayCategory = '관점의<br>비교 대조';
               else if (displayCategory.includes('진로 및 학업') || displayCategory.includes('진로/학업')) displayCategory = '진로 및<br>학업 역량';
               else if (displayCategory.includes('해결 방안')) displayCategory = '해결 방안<br>구체성';
+              else if (displayCategory.includes('학습/탐구 구체성')) displayCategory = '학습/탐구<br>구체성';
+              else if (displayCategory.includes('시행착오 및 극복 과정')) displayCategory = '시행착오 및<br>극복 과정';
+              else if (displayCategory.includes('어학/국제 관심')) displayCategory = '어학/국제 관심<br>계기 연계';
           }
 
           groupHTML += `
