@@ -4781,19 +4781,13 @@ async function renderSettingsAssignments() {
     header.style.marginBottom = '15px';
     
     const labelSpan = document.createElement('span');
-    labelSpan.style.color = 'var(--text-muted)';
-    labelSpan.style.fontWeight = 'bold';
-    labelSpan.style.width = '80px';
-    labelSpan.style.whiteSpace = 'nowrap';
+    labelSpan.style.cssText = "font-size: 14px; color:var(--text-muted); white-space:nowrap; margin-left: 5px;";
     labelSpan.textContent = '적용 학년도';
     
     const yearInput = document.createElement('input');
     yearInput.type = 'text';
-    yearInput.className = 'form-control school-year-input assign-year-input'; // Added school-year-input to inherit exact CSS
-    yearInput.style.width = '100px';
-    yearInput.style.fontWeight = 'bold';
-    yearInput.style.color = '#eab308';
-    yearInput.style.textAlign = 'center';
+    yearInput.className = 'form-control school-year-input assign-year-input';
+    yearInput.style.cssText = "width: 120px; font-size: 16px; font-weight: bold; color: #facc15; text-align: center; background-color: rgba(250, 204, 21, 0.05);";
     yearInput.placeholder = '예: 2027';
     yearInput.value = assignData.year || '';
     yearInput.onchange = (e) => { assignData.year = e.target.value; window.isSettingsDirty = true; };
