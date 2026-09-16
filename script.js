@@ -3254,15 +3254,14 @@ function renderSettingsSchools() {
     let filterHtml = '<strong style="color:var(--text-muted);"><i class="fa-solid fa-filter"></i> 학년도 필터:</strong>';
     allYears.forEach(y => {
        const checked = window.currentYearFilter.has(y) ? 'checked' : '';
-       filterHtml += `<label style="cursor:pointer; display:flex; align-items:center; gap:5px; color:#fff; font-size:14px;"><input type="checkbox" class="year-filter-cb" value="${y}" ${checked}> ${y === '미지정' ? '미지정' : y + '학년도'}</label>`;
+       filterHtml += `<label style="cursor:pointer; display:flex; align-items:center; gap:5px; color:#fff; font-size:14px;"><input type="radio" name="school-year-filter" class="year-filter-cb" value="${y}" ${checked}> ${y === '미지정' ? '미지정' : y + '학년도'}</label>`;
     });
     filterDiv.innerHTML = filterHtml;
     listEl.appendChild(filterDiv);
 
     filterDiv.addEventListener('change', (e) => {
        if (e.target.classList.contains('year-filter-cb')) {
-         if (e.target.checked) window.currentYearFilter.add(e.target.value);
-         else window.currentYearFilter.delete(e.target.value);
+         window.currentYearFilter = new Set([e.target.value]);
          
          const blocks = listEl.querySelectorAll('.school-setting-block');
          blocks.forEach(block => {
@@ -4740,15 +4739,14 @@ async function renderSettingsAssignments() {
     let filterHtml = '<strong style="color:var(--text-muted);"><i class="fa-solid fa-filter"></i> 학년도 필터:</strong>';
     allYears.forEach(y => {
        const checked = window.currentAssignmentYearFilter.has(y) ? 'checked' : '';
-       filterHtml += `<label style="cursor:pointer; display:flex; align-items:center; gap:5px; color:#fff; font-size:14px;"><input type="checkbox" class="assign-year-filter-cb" value="${y}" ${checked}> ${y === '미지정' ? '미지정' : y + '학년도'}</label>`;
+       filterHtml += `<label style="cursor:pointer; display:flex; align-items:center; gap:5px; color:#fff; font-size:14px;"><input type="radio" name="assign-year-filter" class="assign-year-filter-cb" value="${y}" ${checked}> ${y === '미지정' ? '미지정' : y + '학년도'}</label>`;
     });
     filterDiv.innerHTML = filterHtml;
     container.appendChild(filterDiv);
 
     filterDiv.addEventListener('change', (e) => {
        if (e.target.classList.contains('assign-year-filter-cb')) {
-         if (e.target.checked) window.currentAssignmentYearFilter.add(e.target.value);
-         else window.currentAssignmentYearFilter.delete(e.target.value);
+         window.currentAssignmentYearFilter = new Set([e.target.value]);
          
          const blocks = container.querySelectorAll('.assign-setting-block');
          blocks.forEach(block => {
