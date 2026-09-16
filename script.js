@@ -1581,7 +1581,8 @@ function renderChecklistToHTML(jsonString) {
             case '특화 환경 지목': displayCategory = '특화 환경<br>지목'; break;
             case '관심 분야 명시': displayCategory = '관심 분야<br>명시'; break;
             case '구체적 상황': displayCategory = '구체적<br>상황'; break;
-            case '본인의 직접 행동': displayCategory = '본인의<br>직접 행동'; break;
+            case '본인의 직접 행동(배려/나눔/협력/갈등관리)':
+            case '본인의 직접 행동': displayCategory = '본인의<br>직접 행동 여부'; break;
             case '행동 및 태도 변화': displayCategory = '행동 및<br>태도 변화'; break;
             case '관점의 비교·대조':
             case '관점의 비교 대조': displayCategory = '관점의<br>비교 대조'; break;
@@ -1595,6 +1596,7 @@ function renderChecklistToHTML(jsonString) {
               else if (displayCategory.includes('관점의 비교')) displayCategory = '관점의<br>비교 대조';
               else if (displayCategory.includes('진로 및 학업') || displayCategory.includes('진로/학업')) displayCategory = '진로 및<br>학업 역량';
               else if (displayCategory.includes('해결 방안')) displayCategory = '해결 방안<br>구체성';
+              else if (displayCategory.includes('본인의 직접 행동')) displayCategory = '본인의<br>직접 행동 여부';
               else if (displayCategory.includes('학습/탐구 구체성')) displayCategory = '학습/탐구<br>구체성';
               else if (displayCategory.includes('시행착오 및 극복 과정')) displayCategory = '시행착오 및<br>극복 과정';
               else if (displayCategory.includes('어학/국제 관심')) displayCategory = '어학/국제 관심<br>계기 연계';
