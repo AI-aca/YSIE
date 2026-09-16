@@ -3729,10 +3729,10 @@ function renderUserGuideContent() {
         </div>
 
         <div style="margin-bottom: 25px;">
-          <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-comments" style="color: var(--color-primary); margin-right: 8px;"></i> 2. 면접 예상질문 직접 답변하기 <span style="color: #f59e0b;">(★중요)</span></h5>
+          <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-comments" style="color: var(--color-primary); margin-right: 8px;"></i> 2. 과제 및 예상질문 직접 답변하기 <span style="color: #f59e0b;">(★중요)</span></h5>
           <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 10px; margin-left: 5px;">선생님이 만들어주신 예상 질문에 본인만의 답변을 직접 작성하며 면접을 대비하세요.</p>
           <ul style="list-style: none; padding: 0; margin: 0; margin-left: 5px;">
-            <li style="margin-bottom: 8px; font-size: 14px;">① 좌측의 <strong>[예상질문 연습]</strong> 탭으로 이동합니다.</li>
+            <li style="margin-bottom: 8px; font-size: 14px;">① 좌측의 <strong>[과제 및 예상질문 연습]</strong> 탭으로 이동합니다.</li>
             <li style="margin-bottom: 8px; font-size: 14px;">② 본인 이름 옆의 <code>[<i class="fa-solid fa-microphone"></i> 연습하기]</code> 버튼을 클릭합니다.</li>
             <li style="margin-bottom: 8px; font-size: 14px;">③ 각 번호 탭을 이동하며 편하게 답변을 작성하세요. 작성 중인 글은 <strong>자동으로 임시저장</strong>되므로 창을 닫기 전까지 날아가지 않습니다.</li>
             <li style="font-size: 14px;">④ 답변 작성을 모두 마친 후 마지막에 모달창 하단의 <code>[답변 저장하기]</code> 버튼을 딱 한 번 눌러 전체를 제출합니다.</li>
@@ -3740,8 +3740,8 @@ function renderUserGuideContent() {
         </div>
         
         <div style="margin-bottom: 0;">
-          <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-file-pdf" style="color: var(--color-primary); margin-right: 8px;"></i> 3. 입학요강 및 기출문제 열람</h5>
-          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 0; margin-left: 5px;">좌측 <strong>[입학요강]</strong> 및 <strong>[기출문제]</strong> 메뉴를 통해 지원하시는 학교의 모집요강과 최근 3개년 기출문제 PDF를 열람하고 면접에 대비할 수 있습니다.</p>
+          <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-file-pdf" style="color: var(--color-primary); margin-right: 8px;"></i> 3. 입학요강 열람</h5>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 0; margin-left: 5px;">좌측 <strong>[입학요강]</strong> 메뉴를 통해 지원하시는 학교의 모집요강 PDF를 열람하고 면접에 대비할 수 있습니다.</p>
         </div>
       </div>
     `;
@@ -3760,8 +3760,8 @@ function renderUserGuideContent() {
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>합불 갱신:</strong> 대시보드의 '합불 상태' 열을 클릭해 학생의 전형 결과를 실시간으로 변경하세요.</li>
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>학생 수정:</strong> 목록 우측 끝의 <code>[수정]</code> 버튼을 눌러 연락처나 담당 강사를 변경할 수 있습니다.</li>
                 <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>생기부 업로드 및 원본 열람:</strong> 대시보드의 '생기부' 열에서 아이콘을 눌러 PDF를 업로드하면, <code>[보기]</code> 버튼이 생성되어 언제든 원본을 열람할 수 있습니다.</li>
-                <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>생기부 산정 근거 확인:</strong> 학생의 <strong>생기부 점수</strong>를 클릭하면 AI가 분석한 3개 영역 요약과 함께 상세한 <strong>점수 산정 근거</strong> 창이 열립니다.</li>
-                <li style="font-size: 14px; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 1학기의 내신성적, 수상실적, 독서, 출결이 완료된 생기부를 올리세요. 이 항목들이 없는 경우 생기부 점수의 정확도가 현저히 떨어집니다!&gt;</li>
+                <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-success); margin-right: 8px;"></i> <strong>생기부 산정 근거 확인:</strong> 학생의 <strong>생기부 점수</strong>를 클릭하면 AI가 분석한 영어/국어/사회 교과 및 출결 등 세부 항목 요약과 함께 상세한 <strong>점수 산정 근거</strong> 창이 열립니다.</li>
+                <li style="font-size: 14px; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 2학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</li>
               </ul>
             </div>
           </div>
@@ -3779,7 +3779,7 @@ function renderUserGuideContent() {
 
           <div style="margin-bottom: 25px;">
             <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-microphone" style="color: var(--color-success); margin-right: 8px;"></i> 3. 면접 답변 확인 및 지도</h5>
-            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 10px; margin-left: 5px;"><strong>[면접 연습]</strong> 탭에서 <code>[답변 확인]</code> 버튼을 누르면, 학생이 직접 작성한 예상질문 답변 내용을 열람하고 면접을 대비시킬 수 있습니다.</p>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 10px; margin-left: 5px;"><strong>[과제 및 예상질문 연습]</strong> 탭에서 <code>[답변 확인]</code> 버튼을 누르면, 학생이 직접 작성한 예상질문 답변 내용을 열람하고 면접을 대비시킬 수 있습니다.</p>
           </div>
 
 
@@ -3795,10 +3795,10 @@ function renderUserGuideContent() {
           <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">관리자는 강사가 수행하는 모든 기능(문항별 피드백, 합불 갱신 등)을 기본적으로 사용할 수 있으며, 아래와 같은 최고 권한 기능이 추가로 부여됩니다.</p>
 
           <div style="margin-bottom: 25px;">
-            <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-chart-pie" style="color: var(--color-danger); margin-right: 8px;"></i> 1. 생기부 정밀 분석 (30개 항목) 열람</h5>
+            <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-chart-pie" style="color: var(--color-danger); margin-right: 8px;"></i> 1. 생기부 정밀 분석 (160점 만점) 열람</h5>
             <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border-left: 3px solid var(--color-danger);">
-              <p style="font-size: 14px; margin-bottom: 10px;">대시보드에서 <strong>생기부 점수</strong>를 클릭하면, 강사에게는 보이지 않는 <strong>30개 전체 평가 항목의 세부 점수와 AI 판단 근거</strong>가 기재된 정밀 모달창을 단독으로 열람할 수 있습니다.</p>
-              <p style="font-size: 14px; margin-bottom: 0; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 1학기의 내신성적, 수상실적, 독서, 출결이 완료된 생기부를 올리세요. 이 항목들이 없는 경우 생기부 점수의 정확도가 현저히 떨어집니다!&gt;</p>
+              <p style="font-size: 14px; margin-bottom: 10px;">대시보드에서 <strong>생기부 점수</strong>를 클릭하면, 강사에게는 보이지 않는 <strong>영어/국어/사회 교과 및 출결, 동점자 컷오프(B 이하), 학폭 여부 등 상세 평가 결과와 AI 판단 근거</strong>가 기재된 정밀 모달창을 단독으로 열람할 수 있습니다.</p>
+              <p style="font-size: 14px; margin-bottom: 0; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 2학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</p>
             </div>
           </div>
 
@@ -5128,11 +5128,16 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
   }
 };
 
+const closeMsg = '저장하지 않은 내용은 모두 사라집니다. 정말 창을 닫으시겠습니까?';
 const btnCloseModal = document.getElementById('btn-close-assignment-modal');
-if(btnCloseModal) btnCloseModal.addEventListener('click', () => { document.getElementById('modal-assignment-practice').classList.remove('open'); });
+if(btnCloseModal) btnCloseModal.addEventListener('click', () => { 
+  if(confirm(closeMsg)) document.getElementById('modal-assignment-practice').classList.remove('open'); 
+});
 
 const btnCloseModal2 = document.getElementById('btn-close-assignment-practice-modal');
-if(btnCloseModal2) btnCloseModal2.addEventListener('click', () => { document.getElementById('modal-assignment-practice').classList.remove('open'); });
+if(btnCloseModal2) btnCloseModal2.addEventListener('click', () => { 
+  if(confirm(closeMsg)) document.getElementById('modal-assignment-practice').classList.remove('open'); 
+});
 
 document.getElementById('assignment-answer-textarea').addEventListener('input', updateAssignmentStatusBoard);
 document.getElementById('assignment-answer-textarea').addEventListener('keyup', updateAssignmentStatusBoard);
@@ -5143,11 +5148,14 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
   
   if (CURRENT_SELECTED_ASSIGNMENT_INDEX === -1) return;
   
+  // 방어 로직: 탭 리스트가 비정상일 경우 중단
+  const ulList = document.getElementById('assignment-modal-list');
+  if (!ulList || ulList.children.length === 0 || CURRENT_SELECTED_ASSIGNMENT_INDEX >= ulList.children.length) return;
+  
   // 현재 뷰의 데이터를 JSON 객체에 업데이트
-  const currentLabel = document.getElementById('assignment-modal-list').children[CURRENT_SELECTED_ASSIGNMENT_INDEX].textContent;
+  const currentLabel = ulList.children[CURRENT_SELECTED_ASSIGNMENT_INDEX].textContent;
   CURRENT_ASSIGNMENT_ANSWERS[currentLabel] = aText.value;
 
-  // 빈칸, 미변경 방어 로직 검증 (valid 값들만 필터링)
   const validAnswers = {};
   let changed = [];
   let unchanged = [];
@@ -5155,7 +5163,6 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
   Object.keys(CURRENT_ASSIGNMENT_ANSWERS).forEach(label => {
     const curr = (CURRENT_ASSIGNMENT_ANSWERS[label] || '').trim();
     const orig = (ORIGINAL_ASSIGNMENT_ANSWERS[label] || '').trim();
-    if (curr === '') return; // 빈칸 제외
     
     validAnswers[label] = curr;
     
@@ -5173,7 +5180,7 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
   const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
   
   if (changed.length === 0) {
-    alert('수정된 과제 내용이 없거나 빈 칸이어서 저장할 항목이 없습니다.');
+    alert('답변 변경 사항이 없어 서버에 저장할 내용이 없습니다.');
     return;
   }
   
