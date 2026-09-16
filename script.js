@@ -922,7 +922,7 @@ function renderMainTable() {
         const actionBtnIcon = CURRENT_ROLE === '학생' ? 'fa-microphone' : 'fa-eye';
         
         if (hasQuestions || isAssign) {
-          td.innerHTML = `<span class="badge success" onclick="${isAssign ? `openAssignmentPractice('${student.studentLink}')` : `openInterviewPractice('${student.studentLink}', '${modeStr}')`}" style="cursor:pointer;"><i class="fa-solid ${actionBtnIcon}"></i> ${actionBtnName}</span>` + btnGen;
+          td.innerHTML = `<span class="badge success" onclick="${isAssign ? `openAssignmentPractice('${student.studentLink}', '${student.admissionYear}')` : `openInterviewPractice('${student.studentLink}', '${modeStr}')`}" style="cursor:pointer;"><i class="fa-solid ${actionBtnIcon}"></i> ${actionBtnName}</span>` + btnGen;
         } else {
           td.innerHTML = `<span class="text-muted">미생성</span>` + btnGen;
         }
