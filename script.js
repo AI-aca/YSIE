@@ -3136,8 +3136,7 @@ async function loadSettingsForm() {
     if (schools.length === 0) {
       window.SCHOOL_QUESTIONS_MAP = [
         { name: '세종국제고', includeSpaces: true, questions: [
-          { label: '문항 1', content: '자기주도학습과정(배움과 성장) 및 지원동기와 진로계획을 기술하시오.', limit: '1500' },
-          { label: '문항 2', content: '핵심인성역량(배려, 나눔, 협력, 타인존중, 규칙준수 등) 관련 활동 경험을 기술하시오.', limit: '500' }
+          { label: '통합 문항', content: '자기주도학습과정(배움과 성장) 및 지원동기와 진로계획을 기술하시오. 핵심인성역량(배려, 나눔, 협력, 타인존중, 규칙준수 등) 관련 활동 경험을 기술하시오.', limit: '1500' }
         ] },
         { name: '대전외고', includeSpaces: true, questions: [
           { label: '문항 1', content: '자기주도학습영역 및 지원동기와 진로계획을 기술하시오.', limit: '1200' },
@@ -3177,8 +3176,7 @@ async function loadSettingsForm() {
     // 통신 실패 시 화면 렌더링 붕괴를 막기 위한 기본값 할당
     window.SCHOOL_QUESTIONS_MAP = [
       { name: '세종국제고', includeSpaces: true, questions: [
-        { label: '문항 1', content: '자기주도학습과정(배움과 성장) 및 지원동기와 진로계획을 기술하시오.', limit: '1500' },
-        { label: '문항 2', content: '핵심인성역량(배려, 나눔, 협력, 타인존중, 규칙준수 등) 관련 활동 경험을 기술하시오.', limit: '500' }
+        { label: '통합 문항', content: '자기주도학습과정(배움과 성장) 및 지원동기와 진로계획을 기술하시오. 핵심인성역량(배려, 나눔, 협력, 타인존중, 규칙준수 등) 관련 활동 경험을 기술하시오.', limit: '1500' }
       ] },
       { name: '대전외고', includeSpaces: true, questions: [
         { label: '문항 1', content: '자기주도학습영역 및 지원동기와 진로계획을 기술하시오.', limit: '1200' },
