@@ -5149,19 +5149,36 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
 
   // 빈칸, 미변경 방어 로직 검증 (valid 값들만 필터링)
   const validAnswers = {};
-  let validCount = 0;
+  let changed = [];
+  let unchanged = [];
+  
   Object.keys(CURRENT_ASSIGNMENT_ANSWERS).forEach(label => {
     const curr = (CURRENT_ASSIGNMENT_ANSWERS[label] || '').trim();
     const orig = (ORIGINAL_ASSIGNMENT_ANSWERS[label] || '').trim();
     if (curr === '') return; // 빈칸 제외
+    
     validAnswers[label] = curr;
-    if (curr !== orig) validCount++; // 하나라도 변경점이 있는지 카운트
+    
+    // UI 표시용 라벨 정제 ('공통과제1' -> '📝 과제1')
+    const displayName = '📝 ' + label.replace(/공통/g, '');
+    
+    if (curr !== orig) {
+      changed.push(displayName);
+    } else {
+      unchanged.push(displayName);
+    }
   });
   
-  if (validCount === 0) {
+  const changedStr = changed.length > 0 ? changed.join(' / ') : '없음';
+  const unchangedStr = unchanged.length > 0 ? unchanged.join(' / ') : '없음';
+  
+  if (changed.length === 0) {
     alert('수정된 과제 내용이 없거나 빈 칸이어서 저장할 항목이 없습니다.');
     return;
   }
+  
+  const msg = `[저장 확인]\n- 💾 답변이 변경된 질문(저장 반영) : ${changedStr}\n- 🔒 답변의 변경이 없는 질문(저장 미반영) : ${unchangedStr}\n\n위 변경사항을 서버에 일괄 저장하시겠습니까?`;
+  if (!confirm(msg)) return;
 
   const orgText = btn.textContent;
   btn.textContent = '저장 중...';
