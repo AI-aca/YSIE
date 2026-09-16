@@ -5134,11 +5134,19 @@ window.openAssignmentPractice = async function(studentLink, admissionYear) {
 const closeMsg = '저장하지 않은 내용은 모두 사라집니다. 정말 창을 닫으시겠습니까?';
 const btnCloseModal = document.getElementById('btn-close-assignment-modal');
 if(btnCloseModal) btnCloseModal.addEventListener('click', () => { 
+  if (CURRENT_ROLE !== '학생') {
+    document.getElementById('modal-assignment-practice').classList.remove('open');
+    return;
+  }
   if(confirm(closeMsg)) document.getElementById('modal-assignment-practice').classList.remove('open'); 
 });
 
 const btnCloseModal2 = document.getElementById('btn-close-assignment-practice-modal');
 if(btnCloseModal2) btnCloseModal2.addEventListener('click', () => { 
+  if (CURRENT_ROLE !== '학생') {
+    document.getElementById('modal-assignment-practice').classList.remove('open');
+    return;
+  }
   if(confirm(closeMsg)) document.getElementById('modal-assignment-practice').classList.remove('open'); 
 });
 
