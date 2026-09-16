@@ -443,11 +443,7 @@ async function evaluateStudentRecord(studentId, recordText) {
 }
 `;
 
-    const areas = [
-      { id: 1, prompt: PROMPT_AREA_1 },
-      { id: 2, prompt: PROMPT_AREA_2 },
-      { id: 3, prompt: PROMPT_AREA_3 }
-    ];
+    const areas = [{ id: 1, prompt: PROMPT_AREA_1 }];
     let finalParsedData = {};
       const models = ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview'];
     let pendingAreas = [...areas];
@@ -656,7 +652,7 @@ async function evaluateStudentRecord(studentId, recordText) {
     const basisPayload = {
       student_link: effectiveLink,
       target_school: targetSchoolName,
-      total_score: String(totalScore),
+      total_score: evaluation.totalScore,
       analysis_report: analysisText,
       score_details_json: typeof finalParsedData === 'string' ? finalParsedData : JSON.stringify(finalParsedData),
       created_at: new Date().toISOString()
@@ -858,362 +854,104 @@ async function uploadStudentRecordPdf(studentId, fileObject, fileName) {
 }
 
 function calculateRecordScore(data) {
-  const scores = {};
+  let totalEnglish = 160;
+  const gradePoints = { 'A': 40, 'B': 36, 'C': 32, 'D': 28, 'E': 24 };
+  let eGrades = data.englishGrades || {};
   
-  // 강제 중복 제거 유틸
-  const dedupe = (arr) => [...new Set(arr || [])];
-  
-  // [영역 1] 학업역량 (210점 만점)
-  const mathGrades = dedupe(data.mathGrades);
-  let mathPenalty = 0;
-  mathGrades.forEach(g => {
-    if (String(g).includes('B')) mathPenalty += 15;
-    else if (String(g).includes('C')) mathPenalty += 20;
-    else if (String(g).includes('D') || String(g).includes('E')) mathPenalty += 25;
+  ['2-1', '2-2', '3-1', '3-2'].forEach(sem => {
+    let g = (eGrades[sem] || 'A').toUpperCase();
+    if (!gradePoints[g]) g = 'A';
+    totalEnglish -= (40 - gradePoints[g]);
   });
-  scores.area1_item1 = Math.max(0, 40 - mathPenalty);
-
-  const sciGrades = dedupe(data.sciGrades);
-  let sciPenalty = 0;
-  sciGrades.forEach(g => {
-    if (String(g).includes('B')) sciPenalty += 15;
-    else if (String(g).includes('C')) sciPenalty += 20;
-    else if (String(g).includes('D') || String(g).includes('E')) sciPenalty += 25;
-  });
-  scores.area1_item2 = Math.max(0, 40 - sciPenalty);
-
-  const drops = data.gradeDropsExtracted || { korEng: [], socHisInfo: [], moralTech: [] };
   
-  const calcDrops = (arr) => {
-    let totalDrops = 0;
-    dedupe(arr).forEach(str => {
-      if (String(str).includes('누락')) return;
-      const match = String(str).match(/[BCDE]/);
-      if (match) {
-        if (match[0] === 'B') totalDrops += 1;
-        else if (match[0] === 'C') totalDrops += 2;
-        else if (match[0] === 'D') totalDrops += 3;
-        else if (match[0] === 'E') totalDrops += 4;
-      }
-    });
-    return totalDrops;
-  };
-
-  const dropsKorEng = calcDrops(drops.korEng);
-  const dropsSocHisInfo = calcDrops(drops.socHisInfo);
-  const dropsMoralTech = calcDrops(drops.moralTech);
+  let att = data.attendance || {};
+  let abs = parseInt(att.unexcusedAbsences) || 0;
+  let lates = parseInt(att.unexcusedLates) || 0;
+  let early = parseInt(att.unexcusedEarlyLeaves) || 0;
+  let res = parseInt(att.unexcusedResults) || 0;
   
-  scores.area1_item3 = Math.max(0, 25 - (dropsKorEng * 10) - (dropsSocHisInfo * 5) - (dropsMoralTech * 3));
-
-  scores.area1_item4 = Math.min(10, dedupe(data.mathSciClubsExtracted).length * 2);
-  scores.area1_item5 = Math.min(10, dedupe(data.totalAwardsExtracted.filter(a => !a.includes('교과'))).length * 2);
-  scores.area1_item6 = Math.min(10, dedupe(data.mathSciAwardsExtracted.filter(a => !a.includes('교과'))).length * 4);
-  scores.area1_item7 = Math.min(10, dedupe(data.mathResearchExtracted).length * 2);
-  scores.area1_item8 = Math.min(10, dedupe(data.sciResearchExtracted).length * 2);
-  scores.area1_item9 = Math.min(10, dedupe(data.mathSciBooksExtracted).length * 2);
-
-  const evalSeteuk = (seteukObj) => {
-    let s = 0;
-    for (let term in (seteukObj || {})) {
-      const termData = seteukObj[term];
-      const pCnt = dedupe(termData.deepArr).length;
-      const nCnt = dedupe(termData.basicArr).length;
-      const negCnt = dedupe(termData.negativeArr).length;
-      let termScore = (pCnt * 2) + (nCnt * 1) - (negCnt * 1);
-      if (termScore < 0) termScore = 0;
-      if (termScore > 4) termScore = 4;
-      s += termScore;
-    }
-    return s;
-  };
-  scores.area1_item10 = Math.min(15, evalSeteuk(data.mathSeteukExtracted));
-  scores.area1_item11 = Math.min(15, evalSeteuk(data.sciSeteukExtracted));
-
-  const evalBehavior = (behObj) => {
-    let s = 0;
-    for (let year in (behObj || {})) {
-      const termData = behObj[year];
-      const pCnt = dedupe(termData.giftedArr).length;
-      const nCnt = dedupe(termData.excellentArr).length;
-      let yearScore = 0;
-      if (pCnt === 0 && nCnt === 0) {
-        yearScore = 1;
-      } else {
-        yearScore = (pCnt * 5) + (nCnt * 3);
-      }
-      if (yearScore > 8) yearScore = 8;
-      s += yearScore;
-    }
-    return s;
-  };
-  scores.area1_item12 = Math.min(15, evalBehavior(data.mathSciBehaviorExtracted));
-
-  // [영역 2] 진로적합성 (75점 만점)
-  const careerGoals = dedupe(data.careerGoalsExtracted);
-  scores.area2_item1 = Math.min(5, careerGoals.length * 3);
-
-  scores.area2_item2 = Math.min(15, dedupe(data.interestMentionsExtracted).length * 1);
-
-  const evalRecommend = (recObj) => {
-    let s = 0;
-    for (let term in (recObj || {})) {
-      const termData = recObj[term];
-      const pCnt = dedupe(termData.topRecArr).length;
-      const nCnt = dedupe(termData.goodRecArr).length;
-      let termScore = 0;
-      if (pCnt > 0) termScore += 3;
-      if (nCnt > 0) termScore += 2;
-      if (termScore > 4) termScore = 4;
-      s += termScore;
-    }
-    return s;
-  };
-  scores.area2_item3 = Math.min(15, evalRecommend(data.mathRecommendExtracted));
-  scores.area2_item4 = Math.min(15, evalRecommend(data.sciRecommendExtracted));
-  scores.area2_item5 = Math.min(15, evalRecommend(data.infoRecommendExtracted));
-
-  const evalStudyAttitude = (attObj) => {
-    let s = 0;
-    for (let year in (attObj || {})) {
-      const termData = attObj[year];
-      const pCnt = dedupe(termData.proactiveArr).length;
-      const nCnt = dedupe(termData.sincereArr).length;
-      let yearScore = 0;
-      if (pCnt === 0 && nCnt === 0) {
-        yearScore = 1;
-      } else {
-        yearScore = (pCnt * 5) + (nCnt * 3);
-      }
-      if (yearScore > 5) yearScore = 5;
-      s += yearScore;
-    }
-    return s;
-  };
-  scores.area2_item6 = Math.min(10, evalStudyAttitude(data.studyAttitudeExtracted));
-
-  // [영역 3] 인성 (115점 만점)
-  scores.area3_item1 = Math.min(10, dedupe(data.groupProjectsExtracted).length * 2);
-  scores.area3_item2 = Math.min(10, dedupe(data.logicDebatesExtracted).length * 2);
-  scores.area3_item3 = Math.min(10, dedupe(data.helpSharingExtracted).length * 2);
-  scores.area3_item4 = Math.min(10, dedupe(data.leadershipExtracted).length * 2);
-  scores.area3_item5 = Math.min(10, dedupe(data.ruleComplianceExtracted).length * 2);
-
-  const att = data.attendanceExtracted || {};
-  let attendancePenalty = 0;
-  attendancePenalty += (att.unexcusedAbsences || 0) * 10;
-  attendancePenalty += (att.unexcusedLates || 0) * 5;
-  attendancePenalty += (att.unexcusedEarlyLeaves || 0) * 3;
-  attendancePenalty += (att.otherAbsences || 0) * 2;
-  scores.area3_item6 = Math.max(0, 20 - attendancePenalty);
-
-  scores.area3_item7 = Math.min(10, dedupe(data.generalBooksExtracted).length * 1);
-
-  const volunteerHours = dedupe(data.volunteerHoursExtracted);
-  let volunteerScore = 0;
-  volunteerHours.forEach(hrs => {
-    if (hrs >= 30) volunteerScore += 5;
-    else if (hrs >= 20) volunteerScore += 3;
-    else volunteerScore += 1;
-  });
-  scores.area3_item8 = Math.min(10, volunteerScore);
-
-  scores.area3_item9 = Math.min(5, dedupe(data.artsSportsExtracted).length * 2);
-  scores.area3_item10 = Math.min(10, dedupe(data.leadershipRolesExtracted).length * 2);
-
-  const evalPeer = (peerObj) => {
-    let s = 0;
-    for (let year in (peerObj || {})) {
-      const termData = peerObj[year];
-      if (dedupe(termData.altruisticArr).length > 0) s += 5;
-      else if (dedupe(termData.friendlyArr).length > 0) s += 3;
-      else s += 2;
-    }
-    return s;
-  };
-  scores.area3_item11 = Math.min(10, evalPeer(data.peerRelationsExtracted));
-
-  const neg = data.negativeCharacterExtracted || {};
-  let negativePenalty = 0;
-  negativePenalty += dedupe(neg.fatalArr).length * 30;
-  negativePenalty += dedupe(neg.highArr).length * 7;
-  negativePenalty += dedupe(neg.midArr).length * 5;
-  negativePenalty += dedupe(neg.lowArr).length * 3;
-  scores.area3_item12 = -Math.min(35, negativePenalty);
-
-  const area1 = scores.area1_item1 + scores.area1_item2 + scores.area1_item3 + 
-                scores.area1_item4 + scores.area1_item5 + scores.area1_item6 + 
-                scores.area1_item7 + scores.area1_item8 + scores.area1_item9 + 
-                scores.area1_item10 + scores.area1_item11 + scores.area1_item12;
-
-  const area2 = scores.area2_item1 + scores.area2_item2 + scores.area2_item3 + 
-                scores.area2_item4 + scores.area2_item5 + scores.area2_item6;
-
-  const area3 = scores.area3_item1 + scores.area3_item2 + scores.area3_item3 + 
-                scores.area3_item4 + scores.area3_item5 + scores.area3_item6 + 
-                scores.area3_item7 + scores.area3_item8 + scores.area3_item9 + 
-                scores.area3_item10 + scores.area3_item11 + scores.area3_item12;
-
-  const totalScore = area1 + area2 + area3;
-
-  return { totalScore: totalScore, scores: scores, area1, area2, area3 };
-}
-
-function generateScoreCardsData(d, scores, role = '관리자') {
-  const getArrText = (arr) => {
-    if (!arr || arr.length === 0) return [];
-    return [...new Set(arr)];
-  };
-  const count = (val) => {
-    if (!val) return 0;
-    let arr = Array.isArray(val) ? val : [val];
-    return [...new Set(arr)].length;
-  };
-  const getNestedArrText = (obj, scorerFn) => {
-    let list = [];
-    if (!obj) return list;
-    for (let k in obj) {
-       if (scorerFn) {
-           const isSemester = k.includes('-');
-           const suffix = isSemester ? '학기' : '학년';
-           if (role === '관리자') {
-               const subtotal = scorerFn(obj[k]);
-               list.push(`[${k}${suffix}] 소계 ${subtotal}점`);
-           } else {
-               list.push(`[${k}${suffix}]`);
-           }
-       }
-       // 상(탁월) 매핑
-       const topKeys = ['praiseArr', 'deepArr', 'giftedArr', 'topRecArr', 'proactiveArr', 'altruisticArr'];
-       topKeys.forEach(key => {
-         if (obj[k][key]) {
-           let arr = Array.isArray(obj[k][key]) ? obj[k][key] : [obj[k][key]];
-           arr.forEach(t => list.push('[상(탁월)] ' + t));
-         }
-       });
-       
-       // 중(일반) 매핑 (basicArr 포함)
-       const midKeys = ['normalArr', 'basicArr', 'excellentArr', 'goodRecArr', 'sincereArr', 'friendlyArr'];
-       midKeys.forEach(key => {
-         if (obj[k][key]) {
-           let arr = Array.isArray(obj[k][key]) ? obj[k][key] : [obj[k][key]];
-           arr.forEach(t => list.push('[중(일반)] ' + t));
-         }
-       });
-
-       // 하(미흡) 매핑
-       const lowKeys = ['negativeArr'];
-       lowKeys.forEach(key => {
-         if (obj[k][key]) {
-           let arr = Array.isArray(obj[k][key]) ? obj[k][key] : [obj[k][key]];
-           arr.forEach(t => list.push('[하(미흡)] ' + t));
-         }
-       });
-       
-       if (Array.isArray(obj[k])) list.push(...obj[k]);
-    }
-    return [...new Set(list)];
-  };
-  const getDropText = (obj) => {
-    if (!obj) return [];
-    let list = [];
-    if (obj.korEng) list.push(...obj.korEng);
-    if (obj.socHisInfo) list.push(...obj.socHisInfo);
-    if (obj.moralTech) list.push(...obj.moralTech);
-    return [...new Set(list)].map(str => {
-      if (String(str).includes('누락')) {
-        return String(str).replace(/누락/g, '미산출 (만점 반영)');
-      }
-      return str;
-    });
-  };
-
-  const specs = [
-    { key: 'area1_item1', range: '🔍 탐색 범위: 교과학습발달상황(성취도) 표 전체 (1, 2, 3학년 총 3개 학년)', title: '1. 최근 3학기 수학 성취도', max: 40, desc: 'B등급 -15점, C등급 -20점, D/E등급 -25점', getQuote: (d) => {
-        let arr = getArrText(d.mathGrades);
-        const expected = ['2-1', '2-2', '3-1'];
-        let textJoined = arr.join(' ');
-        expected.forEach(term => {
-          if (!textJoined.includes(term)) arr.push(`${term}학기 미산출 (만점 반영)`);
-        });
-        return arr;
-    } },
-    { key: 'area1_item2', range: '🔍 탐색 범위: 교과학습발달상황(성취도) 표 전체 (1, 2, 3학년 총 3개 학년)', title: '2. 최근 3학기 과학 성취도', max: 40, desc: 'B등급 -15점, C등급 -20점, D/E등급 -25점', getQuote: (d) => {
-        let arr = getArrText(d.sciGrades);
-        const expected = ['2-1', '2-2', '3-1'];
-        let textJoined = arr.join(' ');
-        expected.forEach(term => {
-          if (!textJoined.includes(term)) arr.push(`${term}학기 미산출 (만점 반영)`);
-        });
-        return arr;
-    } },
-    { key: 'area1_item3', range: '🔍 탐색 범위: 교과학습발달상황(성취도) 표 전체 (1, 2, 3학년 총 3개 학년)', title: '3. 주요과목 등급 유지도', max: 25, desc: '국/영 -10점, 사/역/정 -5점, 도덕/기가 -3점 (1회당)', getQuote: (d) => getDropText(d.gradeDropsExtracted) },
-    { key: 'area1_item4', range: '🔍 탐색 범위: 창의적 체험활동 중 동아리활동 (1, 2, 3학년 총 3개 학년)', title: '4. 수/과학 관련 동아리', max: 10, desc: '동아리 개수당 2점 가산', getQuote: (d) => getArrText(d.mathSciClubsExtracted) },
-    { key: 'area1_item5', range: '🔍 탐색 범위: 수상경력 표 전체 (1, 2, 3학년 총 3개 학년)', title: '5. 학기당 수상 실적', max: 10, desc: '실적당 2점 가산 (교과상 제외)', getQuote: (d) => getArrText(d.totalAwardsExtracted) },
-    { key: 'area1_item6', range: '🔍 탐색 범위: 수상경력 표 전체 (1, 2, 3학년 총 3개 학년)', title: '6. 수/과학 관련 수상', max: 10, desc: '실적당 4점 가산 (최대 10점)', getQuote: (d) => getArrText(d.mathSciAwardsExtracted) },
-    { key: 'area1_item7', range: '🔍 탐색 범위: 교과세특 및 창의적체험활동(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '7. 수학 탐구 주제 명기', max: 10, desc: '주제 언급당 2점 가산', getQuote: (d) => getArrText(d.mathResearchExtracted) },
-    { key: 'area1_item8', range: '🔍 탐색 범위: 교과세특 및 창의적체험활동(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '8. 과학 탐구 주제 명기', max: 10, desc: '주제 언급당 2점 가산', getQuote: (d) => getArrText(d.sciResearchExtracted) },
-    { key: 'area1_item9', range: '🔍 탐색 범위: 독서활동상황 표 전체 (1, 2, 3학년 총 3개 학년)', title: '9. 수/과학 독서활동', max: 10, desc: '권당 2점 가산', getQuote: (d) => getArrText(d.mathSciBooksExtracted) },
-    { key: 'area1_item10', range: '🔍 탐색 범위: 교과학습발달상황(세부능력 및 특기사항) 내 수학 교과 (1-1, 1-2, 2-1, 2-2 총 4개 학기)', title: '10. 수학 세특 교과우수성', max: 15, desc: '학기별 합산 (상:+2점, 중:+1점, 하:-1점) / 최대 15점 (학기별 최대 4점)', getQuote: (d) => getNestedArrText(d.mathSeteukExtracted, (v) => Math.min(4, count(v.deepArr)*2 + count(v.basicArr)*1 - count(v.negativeArr)*1)) },
-    { key: 'area1_item11', range: '🔍 탐색 범위: 교과학습발달상황(세부능력 및 특기사항) 내 과학 교과 (1-1, 1-2, 2-1, 2-2 총 4개 학기)', title: '11. 과학 세특 교과우수성', max: 15, desc: '학기별 합산 (상:+2점, 중:+1점, 하:-1점) / 최대 15점 (학기별 최대 4점)', getQuote: (d) => getNestedArrText(d.sciSeteukExtracted, (v) => Math.min(4, count(v.deepArr)*2 + count(v.basicArr)*1 - count(v.negativeArr)*1)) },
-    { key: 'area1_item12', range: '🔍 탐색 범위: 행동특성 및 종합의견 전체 (1, 2학년 총 2개 학년)', title: '12. 행특 수/과학 행동특성', max: 15, desc: '학년별 합산 (영재성:+5점, 우수성:+3점, 기본:+1점) / 최대 15점 (학년별 최대 8점)', getQuote: (d) => getNestedArrText(d.mathSciBehaviorExtracted, (v) => { let p = count(v.giftedArr), n = count(v.excellentArr); return Math.min(8, (p === 0 && n === 0) ? 1 : p*5 + n*3); }) },
-    
-    { key: 'area2_item1', range: '🔍 탐색 범위: 진로희망상황 표 전체 (1, 2, 3학년 총 3개 학년)', title: '13. 진로희망 일치성', max: 5, desc: '일치 연수당 3점 가산 (최대 5점)', getQuote: (d) => getArrText(d.careerGoalsExtracted) },
-    { key: 'area2_item2', range: '🔍 탐색 범위: 창의적 체험활동 중 진로 및 동아리활동 (1, 2, 3학년 총 3개 학년)', title: '14. 진로활동 수/과학 연계', max: 15, desc: '연계 언급 1회당 1점 가산 (최대 15점)', getQuote: (d) => getArrText(d.interestMentionsExtracted) },
-    { key: 'area2_item3', range: '🔍 탐색 범위: 교과학습발달상황(세부능력 및 특기사항) 내 수학 교과 (1-1, 1-2, 2-1, 2-2 총 4개 학기)', title: '15. 수학 교사 추천 등급', max: 15, desc: '학기별 합산 (적극추천:+3점, 일반추천:+2점) / 최대 15점 (학기별 최대 4점)', getQuote: (d) => getNestedArrText(d.mathRecommendExtracted, (v) => { let s=0; if(count(v.topRecArr)>0) s+=3; if(count(v.goodRecArr)>0) s+=2; return Math.min(4, s); }) },
-    { key: 'area2_item4', range: '🔍 탐색 범위: 교과학습발달상황(세부능력 및 특기사항) 내 과학 교과 (1-1, 1-2, 2-1, 2-2 총 4개 학기)', title: '16. 과학 교사 추천 등급', max: 15, desc: '학기별 합산 (적극추천:+3점, 일반추천:+2점) / 최대 15점 (학기별 최대 4점)', getQuote: (d) => getNestedArrText(d.sciRecommendExtracted, (v) => { let s=0; if(count(v.topRecArr)>0) s+=3; if(count(v.goodRecArr)>0) s+=2; return Math.min(4, s); }) },
-    { key: 'area2_item5', range: '🔍 탐색 범위: 교과학습발달상황(세부능력 및 특기사항) 내 정보 및 기타 과목 (1-1, 1-2, 2-1, 2-2 총 4개 학기)', title: '17. 정보/기타 교사 추천', max: 15, desc: '학기별 합산 (적극추천:+3점, 일반추천:+2점) / 최대 15점 (학기별 최대 4점)', getQuote: (d) => getNestedArrText(d.infoRecommendExtracted, (v) => { let s=0; if(count(v.topRecArr)>0) s+=3; if(count(v.goodRecArr)>0) s+=2; return Math.min(4, s); }) },
-    { key: 'area2_item6', range: '🔍 탐색 범위: 행동특성 및 종합의견 전체 (1, 2학년 총 2개 학년)', title: '18. 탐구태도 우수성', max: 10, desc: '학년별 합산 (주도적:+5점, 성실함:+3점, 기본:+1점) / 최대 10점 (학년별 최대 5점)', getQuote: (d) => getNestedArrText(d.studyAttitudeExtracted, (v) => { let p = count(v.proactiveArr), n = count(v.sincereArr); return Math.min(5, (p === 0 && n === 0) ? 1 : p*5 + n*3); }) },
-    
-    { key: 'area3_item1', range: '🔍 탐색 범위: 자유학기(1-1), 창체 및 교과세특(수학/과학 제외)(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '19. 협업/공동체 활동', max: 10, desc: '활동 언급당 2점 가산', getQuote: (d) => getArrText(d.groupProjectsExtracted) },
-    { key: 'area3_item2', range: '🔍 탐색 범위: 자유학기(1-1), 창체 및 교과세특(수학/과학 제외)(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '20. 의사소통/토론', max: 10, desc: '활동 언급당 2점 가산', getQuote: (d) => getArrText(d.logicDebatesExtracted) },
-    { key: 'area3_item3', range: '🔍 탐색 범위: 자유학기(1-1), 창체 및 교과세특(수학/과학 제외)(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '21. 나눔/배려/봉사', max: 10, desc: '활동 언급당 2점 가산', getQuote: (d) => getArrText(d.helpSharingExtracted) },
-    { key: 'area3_item4', range: '🔍 탐색 범위: 자유학기(1-1), 창체 및 교과세특(수학/과학 제외)(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '22. 리더십 역량', max: 10, desc: '리더십 언급당 2점 가산', getQuote: (d) => getArrText(d.leadershipExtracted) },
-    { key: 'area3_item5', range: '🔍 탐색 범위: 자유학기(1-1), 창체 및 교과세특(수학/과학 제외)(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '23. 규칙 준수/성실성', max: 10, desc: '준수 언급당 2점 가산', getQuote: (d) => getArrText(d.ruleComplianceExtracted) },
-    { key: 'area3_item6', range: '🔍 탐색 범위: 출결상황 표 전체 (1, 2, 3학년 총 3개 학년)', title: '24. 출결 상태 성실성', max: 20, desc: '미인정결석 -10점, 지각 -5점, 조퇴/결과 -3점, 기타결석 -2점', getQuote: (d) => {
-        const att = d.attendanceExtracted || {};
-        let result = [];
-        if (att.unexcusedAbsences) result.push(`미인정결석: ${att.unexcusedAbsences}회`);
-        if (att.unexcusedLates) result.push(`미인정지각: ${att.unexcusedLates}회`);
-        if (att.unexcusedEarlyLeaves) result.push(`미인정조퇴및결과: ${att.unexcusedEarlyLeaves}회`);
-        if (att.otherAbsences) result.push(`기타결석: ${att.otherAbsences}회`);
-        return result.length ? result : [`특이사항 없음`];
-    } },
-    { key: 'area3_item7', range: '🔍 탐색 범위: 독서활동상황 표 전체 (1, 2, 3학년 총 3개 학년)', title: '25. 인문/일반 독서활동', max: 10, desc: '권당 1점 가산 (최대 10점)', getQuote: (d) => getArrText(d.generalBooksExtracted) },
-    { key: 'area3_item8', range: '🔍 탐색 범위: 창의적 체험활동 중 봉사활동 (1, 2학년 총 2개 학년)', title: '26. 봉사활동 시간 충족도', max: 10, desc: '30시간 이상 5점, 20시간 이상 3점, 그외 1점', getQuote: (d) => getArrText(d.volunteerHoursExtracted).map(v => v + "시간") },
-    { key: 'area3_item9', range: '🔍 탐색 범위: 창의적 체험활동 전체 (1, 2, 3학년 총 3개 학년)', title: '27. 예체능 활동 참여도', max: 5, desc: '활동 언급당 2점 가산 (최대 5점)', getQuote: (d) => getArrText(d.artsSportsExtracted) },
-    { key: 'area3_item10', range: '🔍 탐색 범위: 창의적체험활동(1-1, 1-2, 2-1, 2-2 총 4개 학기), 행발(1, 2학년 총 2개 학년)', title: '28. 학생회/임원 활동', max: 10, desc: '학기당 2점 가산', getQuote: (d) => getArrText(d.leadershipRolesExtracted) },
-    { key: 'area3_item11', range: '🔍 탐색 범위: 행동특성 및 종합의견 전체 (1, 2학년 총 2개 학년)', title: '29. 교우 관계 및 사회성', max: 10, desc: '학년별 합산 (이타성: 5점, 원만함: 3점, 기본: 2점) / 최대 10점', getQuote: (d) => getNestedArrText(d.peerRelationsExtracted, (v) => { if(count(v.altruisticArr)>0) return 5; if(count(v.friendlyArr)>0) return 3; return 2; }) },
-    { key: 'area3_item12', range: '🔍 탐색 범위: 학교폭력 조치상황 및 생기부 전체 텍스트', title: '30. 부정적 평가 감점', max: 0, desc: '학교폭력 -30점, 치명적 -7점, 보통 -5점, 경미 -3점 (최대 -35점)', getQuote: (d) => getNestedArrText(d.negativeCharacterExtracted) }
+  let totalAbsences = abs + Math.floor((lates + early + res) / 3);
+  let deduction = Math.min(4.0, totalAbsences * 0.4);
+  
+  let finalScore = totalEnglish - deduction;
+  
+  let kGrades = data.koreanGrades || {};
+  let sGrades = data.socialGrades || {};
+  const tbSequence = [
+    { sem: '3-2', type: '국어', g: (kGrades['3-2'] || 'A').toUpperCase() },
+    { sem: '3-2', type: '사회', g: (sGrades['3-2'] || 'A').toUpperCase() },
+    { sem: '3-1', type: '국어', g: (kGrades['3-1'] || 'A').toUpperCase() },
+    { sem: '3-1', type: '사회', g: (sGrades['3-1'] || 'A').toUpperCase() },
+    { sem: '2-2', type: '국어', g: (kGrades['2-2'] || 'A').toUpperCase() },
+    { sem: '2-2', type: '사회', g: (sGrades['2-2'] || 'A').toUpperCase() },
+    { sem: '2-1', type: '국어', g: (kGrades['2-1'] || 'A').toUpperCase() },
+    { sem: '2-1', type: '사회', g: (sGrades['2-1'] || 'A').toUpperCase() }
   ];
   
-  return specs.map(spec => ({
-    title: spec.title,
-    max: spec.max,
-    score: scores[spec.key] !== undefined ? scores[spec.key] : 0,
-    desc: spec.desc,
-    quote: spec.getQuote(d)
-  }));
-}
-
-
-// 브라우저 전역 접근용 Export
-if (typeof window !== 'undefined') {
-  window.backendLogic = {
-    generateAIFeedback,
-    generateAIQuestions,
-    evaluateStudentRecord,
-    extractTextFromPdf,
-    uploadStudentRecordPdf,
-    calculateRecordScore
+  let hasBUnder = false;
+  let tbStringArr = [];
+  tbSequence.forEach(tb => {
+    let g = tb.g;
+    if (g !== 'A') hasBUnder = true;
+    tbStringArr.push(g);
+  });
+  
+  let scoreString = `${finalScore.toFixed(1).replace('.0', '')} 점 (${tbStringArr.slice(0,4).join('-')})`;
+  if (hasBUnder) scoreString += ' 🚨';
+  
+  return {
+    totalScore: scoreString,
+    deduction: deduction,
+    englishScore: totalEnglish,
+    tbSequence: tbSequence,
+    area1: totalEnglish,
+    area2: 0,
+    area3: 0
   };
 }
+function generateScoreCardsData(d, scores, role = '관리자') {
+  const cards = [];
+  
+  cards.push({
+    key: 'english_grades',
+    range: '🔍 2-1 ~ 3-2 영어 성취도',
+    title: '1. 영어 내신 성적',
+    max: 160,
+    desc: '4개 학기 성취도 수준별 점수 합산 (A=40, B=36, C=32, D=28, E=24)',
+    score: scores.englishScore,
+    quote: [
+      `2학년 1학기: ${(d.englishGrades && d.englishGrades['2-1']) || 'A'}`,
+      `2학년 2학기: ${(d.englishGrades && d.englishGrades['2-2']) || 'A'}`,
+      `3학년 1학기: ${(d.englishGrades && d.englishGrades['3-1']) || 'A'}`,
+      `3학년 2학기: ${(d.englishGrades && d.englishGrades['3-2']) || 'A'}`
+    ]
+  });
 
+  cards.push({
+    key: 'attendance_deduction',
+    range: '🔍 미인정 결석, 지각, 조퇴, 결과',
+    title: '2. 출결 감점',
+    max: 0,
+    desc: '미인정 결석 1일당 0.4점 감점 (지각/조퇴/결과 3회당 결석 1일 산정, 최대 4점 감점)',
+    score: -(scores.deduction || 0),
+    quote: [
+      `미인정 결석: ${(d.attendance && d.attendance.unexcusedAbsences) || 0}회`,
+      `미인정 지각/조퇴/결과 합산: ${((d.attendance && d.attendance.unexcusedLates) || 0) + ((d.attendance && d.attendance.unexcusedEarlyLeaves) || 0) + ((d.attendance && d.attendance.unexcusedResults) || 0)}회`
+    ]
+  });
 
-// ----------------------------------------------------------------------
-// 🚨 [누락된 기본 API 함수 긴급 복구] 🚨
-// ----------------------------------------------------------------------
+  cards.push({
+    key: 'tie_breaker',
+    range: '🔍 국어 및 사회(역사) 성취도',
+    title: '3. 동점자 사정 우선순위 (경합 대비)',
+    max: 0,
+    desc: '점수 경합 시 아래 순서대로 컷오프 처리됩니다.',
+    score: 0,
+    quote: scores.tbSequence ? scores.tbSequence.map((tb, i) => `${i+1}순위 (${tb.sem} ${tb.type}): ${tb.g}`) : []
+  });
 
-// 로그인 인증
+  return cards;
+}
 async function verifyPassword(payload) {
   try {
     const pwd = payload.password || payload;

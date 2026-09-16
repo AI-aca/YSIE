@@ -8,3 +8,12 @@
   - `backend_logic.js`: `getStudentsList`, `registerStudent`, `updateStudent` 함수 내 DB 페이로드 및 반환 데이터에 `admission_year` 맵핑 추가.
 - **기타**: 
   - `ALTER TABLE students ADD COLUMN admission_year TEXT;` SQL 실행 요청.
+
+
+## 2026-09-16 외고국제고 시스템 전면 개편 2차
+- 파워쉘 사용 전면 중지 규칙 철저히 준수
+- 생기부, 자소서 생성 SQL 코드 마크다운 백틱 및 이스케이프 충돌 해결하여 배포
+- 1차/2차/최종 합불 단계를 서류/최종 합불 2단계로 축소하고 로직 패치
+- 목표학교 조회 시 학년도(admissionYear) 엄격 매칭 함수 도입 (findSchoolConfig)
+- 로고 텍스트 변경 및 영문 텍스트 추가
+- 학생 등록 시 학년도와 지원학교 필수 선택 로직 강화
