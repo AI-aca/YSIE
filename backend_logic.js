@@ -206,7 +206,7 @@ async function generateAIFeedback(studentId, qNum, statementText) {
     // 내용 구조화 (상세분할 태그 → 줄바꿈 변환, 라벨 주입은 프론트엔드에서 완료됨)
     let formattedStatement = statementText.replace(/\[상세분할\]/g, '\n\n');
     
-    let userPrompt = `[학생명]: ${student.name}\n[지원 학교]: ${student.targetSchool}\n`;
+    let userPrompt = `[학생명]: ${student.student_name || student.name || '학생'}\n[지원 학교]: ${student.target_school || student.targetSchool || ''}\n`;
     userPrompt += `[문항 ${parsedQNum}번 정보]\n`;
     if (qContent) userPrompt += `질문: ${qContent}\n\n`;
     userPrompt += `[학생 작성 내용]:\n${formattedStatement}`;
@@ -281,7 +281,7 @@ async function generateAIQuestions(studentId, type) {
     if (type === '자소서') {
       const { data: settingsData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'schools').single();
       const schools = settingsData ? JSON.parse(settingsData.setting_value) : [];
-      const targetSchoolData = schools.find(s => s.name === student.targetSchool);
+      const targetSchoolData = schools.find(s => s.name === (student.target_school || ''));
       
       const { data: statements } = await window.supabaseClient.from('personal_statements').select('*').eq('student_link', studentId).order('updated_at', { ascending: false });
       let statementText = '';
@@ -338,7 +338,7 @@ async function generateAIQuestions(studentId, type) {
       systemPrompt = baseSenggibuPrompt + levelConstraint + formatConstraint;
     }
     
-    const userPrompt = "[학생명]: " + student.name + "\n[데이터]:\n" + studentInputText;
+    const userPrompt = "[학생명]: " + (student.student_name || '학생') + "\n[데이터]:\n" + studentInputText;
     const questionText = await callGeminiWithFallback(systemPrompt, userPrompt);
     
     const { data: existingPract } = await window.supabaseClient.from('interview_practice').select('*').eq('student_link', studentId).maybeSingle();
@@ -448,7 +448,7 @@ async function evaluateStudentRecord(studentId, recordText) {
       const models = ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview'];
     let pendingAreas = [...areas];
     let lastError = null;
-    const studentUserPrompt = "[학생명]: " + student.name + "\n[생기부 파싱 텍스트]:\n" + textToAnalyze;
+    const studentUserPrompt = "[학생명]: " + (student.student_name || '학생') + "\n[생기부 파싱 텍스트]:\n" + textToAnalyze;
 
     for (let attempt = 0; attempt < models.length; attempt++) {
       if (pendingAreas.length === 0) break;
