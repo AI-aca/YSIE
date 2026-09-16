@@ -4715,71 +4715,145 @@ document.getElementById('btn-save-assignment-answer').addEventListener('click', 
 /**
  * 환경 설정: 공통과제 영역 렌더링 및 저장
  */
+
+
 let SETTINGS_COMMON_ASSIGNMENTS = [];
+let CURRENT_SELECTED_ASSIGNMENT_INDEX = -1;
+let CURRENT_ASSIGNMENT_ANSWERS = {};
+
 async function renderSettingsAssignments() {
   const container = document.getElementById('settings-assignment-list');
   if(!container) return;
   container.innerHTML = '';
   
-  SETTINGS_COMMON_ASSIGNMENTS.forEach((assign, index) => {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '10px';
-    row.style.alignItems = 'flex-start';
+  SETTINGS_COMMON_ASSIGNMENTS.forEach((assignData, yearIndex) => {
+    const box = document.createElement('div');
+    box.className = 'school-config-box';
+    box.style.marginBottom = '15px';
+    
+    // Header (Year)
+    const header = document.createElement('div');
+    header.className = 'school-header';
+    header.style.display = 'flex';
+    header.style.gap = '15px';
+    header.style.alignItems = 'center';
+    
+    const labelSpan = document.createElement('span');
+    labelSpan.style.color = 'var(--text-muted)';
+    labelSpan.style.fontWeight = 'bold';
+    labelSpan.style.width = '60px';
+    labelSpan.textContent = '적용 학년도';
     
     const yearInput = document.createElement('input');
     yearInput.type = 'text';
     yearInput.className = 'form-control';
     yearInput.style.width = '100px';
-    yearInput.placeholder = '학년도(예: 2027)';
-    yearInput.value = assign.year || '';
-    yearInput.onchange = (e) => { assign.year = e.target.value; window.isSettingsDirty = true; };
+    yearInput.style.fontWeight = 'bold';
+    yearInput.style.color = '#eab308';
+    yearInput.style.textAlign = 'center';
+    yearInput.placeholder = '예: 2027';
+    yearInput.value = assignData.year || '';
+    yearInput.onchange = (e) => { assignData.year = e.target.value; window.isSettingsDirty = true; };
     
-    const contentInput = document.createElement('textarea');
-    contentInput.className = 'form-control';
-    contentInput.style.flex = '1';
-    contentInput.style.minHeight = '60px';
-    contentInput.placeholder = '과제 내용을 입력하세요.';
-    contentInput.value = assign.content || '';
-    contentInput.onchange = (e) => { assign.content = e.target.value; window.isSettingsDirty = true; };
-    
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn-action';
-    delBtn.style.backgroundColor = '#dc3545';
-    delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-    delBtn.onclick = () => {
-      SETTINGS_COMMON_ASSIGNMENTS.splice(index, 1);
+    const btnAddQ = document.createElement('button');
+    btnAddQ.className = 'btn-action';
+    btnAddQ.style.backgroundColor = '#10b981';
+    btnAddQ.innerHTML = '<i class="fa-solid fa-plus"></i> 과제 문항 추가';
+    btnAddQ.onclick = () => {
+      assignData.questions = assignData.questions || [];
+      assignData.questions.push({ label: '과제' + (assignData.questions.length + 1), content: '' });
       window.isSettingsDirty = true;
       renderSettingsAssignments();
     };
     
-    row.appendChild(yearInput);
-    row.appendChild(contentInput);
-    row.appendChild(delBtn);
-    container.appendChild(row);
+    const btnDelY = document.createElement('button');
+    btnDelY.className = 'btn-action';
+    btnDelY.style.backgroundColor = '#f43f5e';
+    btnDelY.innerHTML = '<i class="fa-solid fa-trash-can"></i> 학년도 통째로 삭제';
+    btnDelY.onclick = () => {
+      if(confirm('해당 학년도의 모든 공통과제를 삭제하시겠습니까?')) {
+        SETTINGS_COMMON_ASSIGNMENTS.splice(yearIndex, 1);
+        window.isSettingsDirty = true;
+        renderSettingsAssignments();
+      }
+    };
+    
+    header.appendChild(labelSpan);
+    header.appendChild(yearInput);
+    
+    const space = document.createElement('div');
+    space.style.flex = '1';
+    header.appendChild(space);
+    
+    header.appendChild(btnAddQ);
+    header.appendChild(btnDelY);
+    box.appendChild(header);
+    
+    // Questions List
+    const qList = document.createElement('div');
+    qList.className = 'question-list';
+    
+    (assignData.questions || []).forEach((q, qIndex) => {
+      const qItem = document.createElement('div');
+      qItem.className = 'q-item';
+      qItem.style.display = 'flex';
+      qItem.style.gap = '10px';
+      qItem.style.alignItems = 'stretch';
+      
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.innerHTML = '<i class="fa-solid fa-bars"></i>';
+      handle.style.display = 'flex';
+      handle.style.alignItems = 'center';
+      
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'form-control';
+      labelInput.style.width = '120px';
+      labelInput.placeholder = '라벨(예: 과제1)';
+      labelInput.value = q.label || '';
+      labelInput.onchange = (e) => { q.label = e.target.value; window.isSettingsDirty = true; };
+      
+      const contentInput = document.createElement('textarea');
+      contentInput.className = 'form-control';
+      contentInput.style.flex = '1';
+      contentInput.style.minHeight = '60px';
+      contentInput.style.resize = 'vertical';
+      contentInput.placeholder = '과제 내용을 구체적으로 입력하세요.';
+      contentInput.value = q.content || '';
+      contentInput.onchange = (e) => { q.content = e.target.value; window.isSettingsDirty = true; };
+      
+      const btnDelQ = document.createElement('button');
+      btnDelQ.className = 'btn-action btn-danger';
+      btnDelQ.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      btnDelQ.style.padding = '10px';
+      btnDelQ.style.backgroundColor = '#f43f5e';
+      btnDelQ.onclick = () => {
+        assignData.questions.splice(qIndex, 1);
+        window.isSettingsDirty = true;
+        renderSettingsAssignments();
+      };
+      
+      qItem.appendChild(handle);
+      qItem.appendChild(labelInput);
+      qItem.appendChild(contentInput);
+      qItem.appendChild(btnDelQ);
+      qList.appendChild(qItem);
+    });
+    
+    box.appendChild(qList);
+    container.appendChild(box);
   });
 }
-
-const origInitSettings = window.initSettings || async function(){};
-window.initSettings = async function() {
-  await origLoadSettings.apply(this, arguments);
-  
-  try {
-    const { data: row } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'common_assignments').single();
-    if(row && row.setting_value) {
-      SETTINGS_COMMON_ASSIGNMENTS = JSON.parse(row.setting_value);
-    } else {
-      SETTINGS_COMMON_ASSIGNMENTS = [];
-    }
-  } catch(e) { console.error('Failed to load common assignments', e); }
-  
-  renderSettingsAssignments();
-};
 
 const btnAddAssign = document.getElementById('btn-add-assignment');
 if (btnAddAssign) {
   btnAddAssign.addEventListener('click', () => {
-    SETTINGS_COMMON_ASSIGNMENTS.push({ year: '', content: '' });
+    // 마이그레이션 방어코드 (구조가 다를 경우 초기화)
+    if (SETTINGS_COMMON_ASSIGNMENTS.length > 0 && !SETTINGS_COMMON_ASSIGNMENTS[0].questions) {
+       SETTINGS_COMMON_ASSIGNMENTS = [];
+    }
+    SETTINGS_COMMON_ASSIGNMENTS.push({ year: '', questions: [{ label: '과제1', content: '' }] });
     window.isSettingsDirty = true;
     renderSettingsAssignments();
   });
@@ -4789,11 +4863,10 @@ const btnSaveAssign = document.getElementById('btn-save-settings-assignments');
 if (btnSaveAssign) {
   btnSaveAssign.addEventListener('click', async () => {
     const btn = btnSaveAssign;
-    const org = btn.textContent;
+    const org = btn.innerHTML;
     btn.textContent = '저장 중...';
     try {
       const payload = JSON.stringify(SETTINGS_COMMON_ASSIGNMENTS);
-      
       const { data: exist } = await window.supabaseClient.from('settings').select('setting_key').eq('setting_key', 'common_assignments').single();
       let res;
       if (exist) {
@@ -4801,7 +4874,6 @@ if (btnSaveAssign) {
       } else {
         res = await window.supabaseClient.from('settings').insert({ setting_key: 'common_assignments', setting_value: payload });
       }
-      
       if(res.error) throw res.error;
       window.isSettingsDirty = false;
       alert('과제가 성공적으로 저장되었습니다.');
@@ -4812,3 +4884,163 @@ if (btnSaveAssign) {
     }
   });
 }
+
+window.openAssignmentPractice = async function(studentLink, admissionYear) {
+  CURRENT_ASSIGNMENT_STUDENT_LINK = studentLink;
+  const modal = document.getElementById('modal-assignment-practice');
+  const ulList = document.getElementById('assignment-modal-list');
+  const qText = document.getElementById('assignment-question-text');
+  const aText = document.getElementById('assignment-answer-textarea');
+  const btnSave = document.getElementById('btn-save-assignment-answer');
+  
+  ulList.innerHTML = '<li style="padding: 12px; color: #aaa;">로딩 중...</li>';
+  qText.textContent = '데이터를 불러오는 중입니다.';
+  aText.value = '';
+  CURRENT_ASSIGNMENT_ANSWERS = {};
+  CURRENT_SELECTED_ASSIGNMENT_INDEX = -1;
+  btnSave.disabled = true;
+  aText.disabled = true;
+  modal.classList.add('open');
+
+  try {
+    // 1. 공통과제 질문 목록 로드
+    const { data: settingsRow } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'common_assignments').single();
+    let questions = [];
+    if(settingsRow && settingsRow.setting_value) {
+      const assignments = JSON.parse(settingsRow.setting_value);
+      // 구버전(단일형) 마이그레이션 호환 처리
+      if (assignments.length > 0 && typeof assignments[0].content === 'string') {
+        const match = assignments.find(a => a.year === admissionYear);
+        if (match && match.content) questions = [{ label: '공통과제', content: match.content }];
+      } else {
+        const match = assignments.find(a => a.year === admissionYear);
+        if (match && match.questions) questions = match.questions;
+      }
+    }
+    
+    if (questions.length === 0) {
+      ulList.innerHTML = '<li style="padding: 12px; color: #ff6666;">해당 학년도 과제 없음</li>';
+      qText.textContent = '해당 학년도에 등록된 공통과제가 없습니다.';
+      return;
+    }
+
+    // 2. 학생의 기존 답변 로드 (JSON)
+    const { data: answerRow } = await window.supabaseClient.from('common_assignments_answers').select('answer_text').eq('student_id', studentLink).single();
+    if(answerRow && answerRow.answer_text) {
+      try {
+        // 기존 단일 텍스트 형태와 JSON 형태 호환 처리
+        const parsed = JSON.parse(answerRow.answer_text);
+        if(typeof parsed === 'object' && parsed !== null) {
+          CURRENT_ASSIGNMENT_ANSWERS = parsed;
+        } else {
+          CURRENT_ASSIGNMENT_ANSWERS = { '공통과제': answerRow.answer_text, [questions[0].label]: answerRow.answer_text };
+        }
+      } catch(e) {
+        // JSON 파싱 실패면 구버전 단일 텍스트로 간주
+        CURRENT_ASSIGNMENT_ANSWERS = { [questions[0].label]: answerRow.answer_text };
+      }
+    }
+
+    // 3. 좌측 탭 렌더링
+    ulList.innerHTML = '';
+    questions.forEach((q, idx) => {
+      const li = document.createElement('li');
+      li.textContent = q.label || ('과제 ' + (idx+1));
+      li.style.cursor = 'pointer';
+      li.style.padding = '12px 15px';
+      li.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      li.style.color = '#fff';
+      li.style.fontSize = '14px';
+      
+      li.onclick = () => {
+        // 이전 입력값 임시 저장
+        if (CURRENT_SELECTED_ASSIGNMENT_INDEX > -1) {
+          const prevQ = questions[CURRENT_SELECTED_ASSIGNMENT_INDEX];
+          CURRENT_ASSIGNMENT_ANSWERS[prevQ.label] = aText.value;
+        }
+        
+        // 탭 UI 갱신
+        Array.from(ulList.children).forEach(child => {
+          child.style.backgroundColor = 'transparent';
+          child.style.borderLeft = 'none';
+        });
+        li.style.backgroundColor = 'rgba(139, 92, 246, 0.2)';
+        li.style.borderLeft = '4px solid #8b5cf6';
+        
+        // 내용 갱신
+        CURRENT_SELECTED_ASSIGNMENT_INDEX = idx;
+        qText.textContent = q.content;
+        aText.value = CURRENT_ASSIGNMENT_ANSWERS[q.label] || '';
+        
+        if (CURRENT_ROLE === '학생') {
+          aText.disabled = false;
+          btnSave.disabled = false;
+        }
+      };
+      ulList.appendChild(li);
+    });
+
+    // 권한 처리
+    if (CURRENT_ROLE !== '학생') {
+      document.getElementById('btn-save-assignment-answer').style.display = 'none';
+    } else {
+      document.getElementById('btn-save-assignment-answer').style.display = 'inline-block';
+    }
+
+    // 첫 번째 탭 강제 클릭
+    if (ulList.children.length > 0) {
+      ulList.children[0].click();
+    }
+
+  } catch(err) {
+    console.error(err);
+    ulList.innerHTML = '<li style="padding: 12px; color: #ff6666;">로딩 에러</li>';
+    qText.textContent = '불러오는 중 오류가 발생했습니다.';
+  }
+};
+
+const btnCloseModal = document.getElementById('btn-close-assignment-modal');
+if(btnCloseModal) btnCloseModal.addEventListener('click', () => { document.getElementById('modal-assignment-practice').classList.remove('open'); });
+
+const btnCloseModal2 = document.getElementById('btn-close-assignment-practice-modal');
+if(btnCloseModal2) btnCloseModal2.addEventListener('click', () => { document.getElementById('modal-assignment-practice').classList.remove('open'); });
+
+document.getElementById('btn-save-assignment-answer').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-save-assignment-answer');
+  const aText = document.getElementById('assignment-answer-textarea');
+  
+  if (CURRENT_SELECTED_ASSIGNMENT_INDEX === -1) return;
+  
+  // 현재 뷰의 데이터를 JSON 객체에 업데이트
+  const currentLabel = document.getElementById('assignment-modal-list').children[CURRENT_SELECTED_ASSIGNMENT_INDEX].textContent;
+  CURRENT_ASSIGNMENT_ANSWERS[currentLabel] = aText.value;
+
+  const orgText = btn.textContent;
+  btn.textContent = '저장 중...';
+  
+  try {
+    const payload = JSON.stringify(CURRENT_ASSIGNMENT_ANSWERS);
+    
+    const { data: existing } = await window.supabaseClient.from('common_assignments_answers').select('id').eq('student_id', CURRENT_ASSIGNMENT_STUDENT_LINK).single();
+    let res;
+    if (existing) {
+      res = await window.supabaseClient.from('common_assignments_answers')
+        .update({ answer_text: payload, updated_at: new Date().toISOString() })
+        .eq('student_id', CURRENT_ASSIGNMENT_STUDENT_LINK);
+    } else {
+      const { data: stu } = await window.supabaseClient.from('students').select('admission_year, admissionYear').eq('student_link', CURRENT_ASSIGNMENT_STUDENT_LINK).single();
+      const year = stu ? (stu.admission_year || stu.admissionYear) : '';
+      res = await window.supabaseClient.from('common_assignments_answers')
+        .insert({ student_id: CURRENT_ASSIGNMENT_STUDENT_LINK, admission_year: year, answer_text: payload });
+    }
+    
+    if (res.error) throw res.error;
+    
+    alert('전체 공통과제 답변이 저장되었습니다.');
+  } catch(e) {
+    console.error(e);
+    alert('저장 실패: ' + e.message);
+  } finally {
+    btn.textContent = orgText;
+  }
+});

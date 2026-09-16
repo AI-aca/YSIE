@@ -621,28 +621,38 @@
   
   <!-- 공통과제 연습 모달 -->
   <div class="modal-overlay" id="modal-assignment-practice">
-    <div class="modal-container" style="max-width: 800px;">
+    <div class="modal-container" style="max-width: 1000px; width: 95%;">
       <div class="modal-header">
         <h3 id="assignment-modal-title">📝 공통과제 연습 및 답변 기록</h3>
         <button class="btn-close" id="btn-close-assignment-modal">&times;</button>
       </div>
-      <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 15px;">
-        <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 15px; border-radius: 4px;">
-          <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 14px;"><i class="fa-solid fa-circle-info"></i> 공통과제 내용</h4>
-          <p id="assignment-question-text" style="font-size: 15px; line-height: 1.6; color: var(--text-main); margin: 0; word-break: keep-all; white-space: pre-wrap;"></p>
+      <div class="modal-body" style="padding: 0; display: flex; height: 600px; max-height: 70vh;">
+        <!-- 좌측 과제 목록 패널 -->
+        <div style="width: 250px; background-color: rgba(0,0,0,0.2); border-right: 1px solid var(--border-color); display: flex; flex-direction: column;">
+          <h4 style="padding: 15px; margin: 0; color: #a1a1aa; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05);"><i class="fa-solid fa-list"></i> 등록된 과제 목록</h4>
+          <ul id="assignment-modal-list" class="question-list" style="flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0;">
+            <!-- JS 동적 렌더링 -->
+          </ul>
         </div>
-        <div class="ps-textarea-wrap" style="flex: 1; display: flex; flex-direction: column;">
-          <textarea id="assignment-answer-textarea" placeholder="여기에 과제에 대한 답변을 작성하십시오..." style="flex: 1; min-height: 250px; resize: vertical; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 15px; line-height: 1.5;"></textarea>
+        <!-- 우측 내용 패널 -->
+        <div style="flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
+          <div style="background: rgba(147, 197, 253, 0.1); border-left: 3px solid #60a5fa; padding: 15px; border-radius: 4px;">
+            <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 14px;"><i class="fa-solid fa-circle-info"></i> 과제 상세 내용</h4>
+            <p id="assignment-question-text" style="font-size: 15px; line-height: 1.6; color: var(--text-main); margin: 0; word-break: keep-all; white-space: pre-wrap;">좌측에서 과제를 선택하십시오.</p>
+          </div>
+          <div class="ps-textarea-wrap" style="flex: 1; display: flex; flex-direction: column;">
+            <textarea id="assignment-answer-textarea" placeholder="선택한 과제에 대한 답변을 작성하십시오..." style="flex: 1; min-height: 250px; resize: vertical; padding: 15px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 15px; line-height: 1.5;" disabled></textarea>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn-action btn-secondary" id="btn-close-assignment-practice-modal">닫기</button>
-        <button class="btn-action" id="btn-save-assignment-answer">과제 답변 저장하기</button>
+        <button class="btn-action" id="btn-save-assignment-answer" disabled>과제 답변 저장하기</button>
       </div>
     </div>
   </div>
 
-<!-- 5. 생기부 AI 산정근거 상세 모달 창 -->
+  <!-- 5. 생기부 AI 산정근거 상세 모달 창 -->
   <div class="modal-overlay" id="modal-score-details">
     <div class="modal-container" style="max-width: 950px; width: 90%;">
       <div class="modal-header">
