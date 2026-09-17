@@ -2540,7 +2540,11 @@ function bindEventHandlers() {
         if (pdfLibraryPanel) pdfLibraryPanel.style.display = 'none';
         if (settingsPanel) {
           settingsPanel.style.display = 'block';
-          loadSettingsForm(); // 설정 데이터 로드하여 폼 채우기
+          loadSettingsForm().then(() => {
+            if (typeof window.resizeVisibleSettingsTextareas === 'function') {
+              window.resizeVisibleSettingsTextareas();
+            }
+          });
         }
       } else if (CURRENT_MENU === 'user-guide') {
         if (tableContainer) tableContainer.style.display = 'none';
@@ -3439,6 +3443,9 @@ function renderSettingsSchools() {
              block.style.display = 'none';
            }
          });
+         if (typeof window.resizeVisibleSettingsTextareas === 'function') {
+           window.resizeVisibleSettingsTextareas();
+         }
        }
     });
   }
@@ -3567,12 +3574,19 @@ function renderSettingsSchools() {
     listEl.appendChild(sBlock);
   });
   
-  setTimeout(() => {
-    document.querySelectorAll('.q-content').forEach(ta => {
-      ta.style.height = 'auto';
-      ta.style.height = ta.scrollHeight + 'px';
-    });
-  }, 10);
+  if (typeof window.resizeVisibleSettingsTextareas !== 'function') {
+    window.resizeVisibleSettingsTextareas = function() {
+      setTimeout(() => {
+        document.querySelectorAll('.q-content').forEach(ta => {
+          if (ta.offsetParent !== null) {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+          }
+        });
+      }, 50);
+    };
+  }
+  window.resizeVisibleSettingsTextareas();
 }
 
 window.addSchoolQuestion = function(sIndex) {
