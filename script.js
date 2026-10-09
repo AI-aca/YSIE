@@ -871,7 +871,12 @@ function renderMainTable() {
         }
         
         if (totalLimit === 0) {
-          td.innerHTML = `<span class="text-muted" style="font-size:12px;">정보없음</span>`;
+          // [2026-10-08] 지원학교 미지정 학생은 '학교 미지정'으로 구분 표시
+          if (String(student.targetSchool || '').trim() === '') {
+            td.innerHTML = `<span style="font-size:12px; color: var(--color-danger);">학교 미지정</span>`;
+          } else {
+            td.innerHTML = `<span class="text-muted" style="font-size:12px;">정보없음</span>`;
+          }
         } else {
           const percent = Math.round((totalWritten / totalLimit) * 100);
           const percentWidth = percent > 100 ? 100 : percent;
@@ -921,7 +926,9 @@ function renderMainTable() {
         const actionBtnName = CURRENT_ROLE === '학생' ? '연습하기' : '답변 확인';
         const actionBtnIcon = CURRENT_ROLE === '학생' ? 'fa-microphone' : 'fa-eye';
         
-        if (hasQuestions || isAssign) {
+        // [2026-10-08] 공통과제는 해당 학년도 과제가 설정에 있을 때만 버튼 노출, 없으면 '미생성'
+        const showPracticeBtn = isAssign ? hasCommonAssignmentForYear(student.admissionYear) : hasQuestions;
+        if (showPracticeBtn) {
           td.innerHTML = `<span class="badge success" onclick="${isAssign ? `openAssignmentPractice('${student.studentLink}', '${student.admissionYear}')` : `openInterviewPractice('${student.studentLink}', '${modeStr}')`}" style="cursor:pointer;"><i class="fa-solid ${actionBtnIcon}"></i> ${actionBtnName}</span>` + btnGen;
         } else {
           td.innerHTML = `<span class="text-muted">미생성</span>` + btnGen;
@@ -1014,6 +1021,10 @@ function renderMainTable() {
         } else {
           td.innerHTML = '<strong>-</strong>';
         }
+      }
+      else if (col.key === 'targetSchool' && String(val || '').trim() === '') {
+        // [2026-10-08] 지원학교 미지정 학생 빨간 '미지정' 표시
+        td.innerHTML = '<span style="color: var(--color-danger); font-weight: 600;">미지정</span>';
       }
       else {
         td.textContent = val || '-';
@@ -1136,10 +1147,30 @@ function toggleScoreAccordion(studentLink, totalScore) {
 }
 
 /**
+ * [2026-10-08] 지원학교 미지정 학생 자소서 진입 차단 공통 함수
+ * - 지원학교가 비어 있으면 역할별 안내창(alert)을 띄우고 true 반환 → 호출부는 즉시 return
+ * - 지원학교가 있으면 false 반환 → 기존 로직 그대로 진행
+ */
+function blockIfTargetSchoolMissing(student) {
+  if (!student) return false;
+  if (String(student.targetSchool || '').trim() !== '') return false;
+  if (CURRENT_ROLE === '학생') {
+    alert('지원학교가 아직 지정되지 않았습니다.\n지원학교가 지정된 후 자기소개서를 작성할 수 있습니다.\n담당 선생님께 문의해 주세요.');
+  } else {
+    alert('[' + (student.name || '학생') + '] 학생의 지원학교가 지정되지 않았습니다.\n대시보드의 [수정] 버튼에서 지원학교를 먼저 지정해 주세요.');
+  }
+  return true;
+}
+
+/**
  * 자소서 편집 모달 창 띄우기
  */
 let ACTIVE_PS_STUDENT = null;
 async function openPersonalStatementModal(studentLink, initialTab = 'manual', targetQNum = null) {
+  // [2026-10-08] 지원학교 미지정 학생은 편집창을 열지 않고 안내만 표시 (전역 상태 변경 전 차단)
+  const guardStudent = STUDENTS_LIST.find(s => String(s.studentLink) === String(studentLink));
+  if (blockIfTargetSchoolMissing(guardStudent)) return;
+  
   isPsDirty = false; // 창 열 때 센서 초기화
   ACTIVE_PS_STUDENT = studentLink;
   
@@ -2706,18 +2737,37 @@ function bindEventHandlers() {
       isReference: document.getElementById('reg-is-reference') ? document.getElementById('reg-is-reference').checked : false
     };
     
-    if (!studentData.center || !studentData.name || !studentData.school || !studentData.targetSchool || !studentData.parentPhone) {
-      alert('센터명, 학생명, 현재 학교, 지원 예정 학교, 학부모 연락처는 필수 기재 사항입니다.');
+    if (!studentData.center || !studentData.name || !studentData.school || !studentData.parentPhone) {
+      alert('센터명, 학생명, 현재 학교, 학부모 연락처는 필수 기재 사항입니다.');
       return;
+    }
+    
+    // [2026-10-08] 수정 시 지원학교 변경 재확인 (① 기존 학교가 비워지는 경우 ② 최종제출 학생의 학교가 바뀌는 경우)
+    if (isEditMode) {
+      const prevStudent = STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_EDIT_STUDENT_LINK));
+      const prevSchool = prevStudent ? String(prevStudent.targetSchool || '').trim() : '';
+      const newSchool = String(studentData.targetSchool || '').trim();
+      if (prevSchool !== '' && newSchool === '') {
+        if (!confirm('기존 지원학교(' + prevSchool + ')가 비워집니다.\n(작성한 자소서 내용은 삭제되지 않고 보관됩니다.)\n지원학교를 미지정 상태로 저장하시겠습니까?')) return;
+      }
+      if (prevStudent && prevSchool !== newSchool && prevStudent.psStatus === '최종제출') {
+        if (!confirm('이 학생은 자소서 [최종제출] 상태입니다.\n지원학교를 변경하면 최종제출 잠금이 해제되고,\n새 지원학교 작성 내용 기준으로 상태(작성전/작성중)가 다시 계산됩니다.\n계속하시겠습니까?')) return;
+      }
     }
     
     try {
       if (isEditMode) {
         // 기존 학생 수정 로직 (mock/연동)
-        await ApiClient.post('updateStudent', { studentData, originalLink: ACTIVE_EDIT_STUDENT_LINK });
-        alert('학생 정보가 성공적으로 수정되었습니다.');
+        const updRes = await ApiClient.post('updateStudent', { studentData, originalLink: ACTIVE_EDIT_STUDENT_LINK });
+        // [2026-10-08] 저장 실패 시 성공 알림 대신 에러 표시 (모달 유지)
+        if (!updRes || updRes.success === false) throw new Error((updRes && updRes.error) || '학생 정보 수정에 실패했습니다.');
+        let doneMsg = '학생 정보가 성공적으로 수정되었습니다.';
+        if (updRes.statusChangedTo) doneMsg += '\n(지원학교 변경으로 자소서 상태가 [' + updRes.statusChangedTo + '](으)로 변경되었습니다.)';
+        alert(doneMsg);
       } else {
-        await ApiClient.post('registerStudent', { studentData });
+        const regRes = await ApiClient.post('registerStudent', { studentData });
+        // [2026-10-08] 저장 실패 시 성공 알림 대신 에러 표시 (모달 유지)
+        if (!regRes || regRes.success === false) throw new Error((regRes && regRes.error) || '신규 학생 등록에 실패했습니다.');
         alert('신규 학생이 등록 완료되었으며 데이터베이스가 자동 세팅되었습니다.');
       }
       document.getElementById('modal-register').classList.remove('open');
@@ -2961,15 +3011,19 @@ function bindEventHandlers() {
       reportMsg += item.lineStr;
     });
     
+    const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT));
+    // [2026-10-08] 상태 판정은 현재 지원학교 글(및 꼬리표 없는 구형 글)만 계산, 다른 학교(구버전) 글은 제외
+    const curSchoolForStatus = String((student && student.targetSchool) || '').trim();
     let totalTextLength = 0;
     hData.current.forEach(curr => {
+      const curLabel = String(curr.version_label || '').trim();
+      if (curLabel !== '' && curLabel !== curSchoolForStatus) return;
       if (curr.text) {
         totalTextLength += curr.text.replace(/\s+/g, '').length;
       }
     });
     const isAllEmpty = (totalTextLength === 0);
     
-    const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT));
     const currentStatus = student ? student.cover_letter_status : '';
     const isStatusMismatch = (isAllEmpty && currentStatus !== '작성전') || (!isAllEmpty && currentStatus === '작성전');
 
@@ -3781,7 +3835,7 @@ function updateTargetSchoolDropdowns(schoolsList) {
   
   const regSelect = document.getElementById('reg-target-school');
   if (regSelect) {
-    regSelect.innerHTML = '<option value="">학교 선택</option>';
+    regSelect.innerHTML = '<option value="">미정 (나중에 지정)</option>';
     SETTINGS_SCHOOLS.forEach(school => {
       const opt = document.createElement('option');
       opt.value = school;
@@ -4294,6 +4348,9 @@ async function runSingleAIQuestions(studentId, mode) {
 
   const isPsMode = mode === 'ps' || mode === '자소서';
   
+  // [2026-10-08] 자소서 예상질문 생성은 지원학교 지정 학생만 허용 (생기부 모드는 영향 없음)
+  if (isPsMode && blockIfTargetSchoolMissing(student)) return;
+  
   if (isPsMode) {
     if (student.psStatus !== '최종제출') {
       alert("⚠️ 자소서가 '최종제출' 상태여야 예상질문 생성이 가능합니다.");
@@ -4589,6 +4646,8 @@ window.generateChecklist = async function() {
 window.openPsViewerModal = async function(studentLink) {
   const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(studentLink));
   if (!student) return;
+  // [2026-10-08] 지원학교 미지정 학생은 뷰어를 열지 않고 안내만 표시
+  if (blockIfTargetSchoolMissing(student)) return;
   
   const titleEl = document.getElementById('ps-viewer-modal-title');
   if (titleEl) titleEl.textContent = `${student.name} 학생의 자소서 전체 뷰어`;
@@ -4867,6 +4926,28 @@ document.getElementById('btn-close-assignment-practice-modal').addEventListener(
 
 
 let SETTINGS_COMMON_ASSIGNMENTS = [];
+
+/**
+ * [2026-10-08] 학년도별 공통과제 존재 여부 판정
+ * - openAssignmentPractice의 과제 탐색 기준과 동일 (학년도 정확히 일치 + 문항 1개 이상, 구버전 단일형 호환)
+ * - 오류 발생 시 false(미생성) 반환 → 화면이 멈추지 않도록 방어
+ */
+function hasCommonAssignmentForYear(admissionYear) {
+  try {
+    const list = Array.isArray(SETTINGS_COMMON_ASSIGNMENTS) ? SETTINGS_COMMON_ASSIGNMENTS : [];
+    if (list.length === 0) return false;
+    const yearStr = String(admissionYear || '');
+    const match = list.find(a => a && a.year === yearStr);
+    if (!match) return false;
+    if (list[0] && typeof list[0].content === 'string') {
+      return !!match.content; // 구버전(단일형) 구조
+    }
+    return Array.isArray(match.questions) && match.questions.length > 0;
+  } catch (e) {
+    console.warn('hasCommonAssignmentForYear error:', e);
+    return false;
+  }
+}
 let CURRENT_SELECTED_ASSIGNMENT_INDEX = -1;
 let CURRENT_ASSIGNMENT_ANSWERS = {};
 let ORIGINAL_ASSIGNMENT_ANSWERS = {};

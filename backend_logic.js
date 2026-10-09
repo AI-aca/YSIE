@@ -1559,6 +1559,33 @@ async function registerStudent(payload) {
   }
 }
 
+/**
+ * [2026-10-08] 특정 지원학교 기준 자소서 상태 계산
+ * - 해당 학교 꼬리표(및 꼬리표 없는 구형) 문항별 최신 본문 중 공백 제외 1자 이상이 있으면 '작성중', 없으면 '작성전'
+ * - 지원학교가 비어 있으면 '작성전'
+ * - 다른 학교(구버전) 글은 계산에서 제외 (DB 데이터는 읽기만 하며 삭제·수정하지 않음)
+ */
+async function calcPsStatusForSchool(studentLink, schoolName) {
+  const school = String(schoolName || '').trim();
+  if (!school) return '작성전';
+  const { data: rows, error } = await window.supabaseClient.from('personal_statements')
+    .select('question_no, version_label, content, updated_at')
+    .eq('student_link', studentLink)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error('자소서 상태 계산 실패: ' + (error.message || String(error)));
+  const seen = new Set();
+  for (const r of (rows || [])) {
+    if (r.content === null || r.content === undefined) continue;
+    const label = String(r.version_label || '').trim();
+    if (label !== '' && label !== school) continue;
+    const key = label + '|' + String(r.question_no);
+    if (seen.has(key)) continue; // 최신 본문만 판정
+    seen.add(key);
+    if (String(r.content).replace(/\s+/g, '').length > 0) return '작성중';
+  }
+  return '작성전';
+}
+
 async function updateStudent(payload) {
   try {
     const { studentData, originalLink } = payload;
@@ -1573,6 +1600,23 @@ async function updateStudent(payload) {
       teacher: studentData.teacher || studentData.mathTeacher || '',
       is_reference: !!studentData.isReference
     };
+
+    // [2026-10-08] 지원학교가 실제로 바뀐 경우에만 자소서 상태 재계산 (새 학교 글 기준, 최종제출 잠금 해제 포함)
+    // - 재계산 실패 시 아무것도 저장하지 않고 에러 반환 (학교만 바뀌고 상태는 안 바뀌는 어긋남 방지)
+    let statusChangedTo = null;
+    const { data: prevRows, error: prevErr } = await window.supabaseClient.from('students').select('target_school, cover_letter_status').eq('student_link', originalLink).limit(1);
+    if (prevErr) throw new Error('기존 학생 정보 조회 실패: ' + (prevErr.message || String(prevErr)));
+    const prevRow = (prevRows && prevRows.length > 0) ? prevRows[0] : null;
+    const prevSchool = prevRow ? String(prevRow.target_school || '').trim() : '';
+    const newSchool = String(updateObj.target_school || '').trim();
+    if (prevRow && prevSchool !== newSchool) {
+      const newStatus = await calcPsStatusForSchool(originalLink, newSchool);
+      if (newStatus !== (prevRow.cover_letter_status || '')) {
+        updateObj.cover_letter_status = newStatus;
+        statusChangedTo = newStatus;
+      }
+    }
+
     const { error } = await window.supabaseClient.from('students').update(updateObj).eq('student_link', originalLink);
     if (error) throw error;
 
@@ -1583,7 +1627,7 @@ async function updateStudent(payload) {
         .eq('student_link', originalLink);
     }
 
-    return { success: true };
+    return { success: true, statusChangedTo: statusChangedTo };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
