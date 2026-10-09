@@ -509,6 +509,7 @@ async function loadStudentsData() {
 const TABLE_COLUMNS = {
   dashboard: [
     { label: '학년도', key: 'admissionYear' },
+    { label: '학급', key: 'classGroup' },
     { label: '센터명', key: 'center' },
     { label: '학생명', key: 'name' },
     { label: '현재 학교', key: 'school' },
@@ -521,6 +522,7 @@ const TABLE_COLUMNS = {
   ],
   info: [
     { label: '학년도', key: 'admissionYear' },
+    { label: '학급', key: 'classGroup' },
     { label: '센터명', key: 'center' },
     { label: '학생명', key: 'name' },
     { label: '현재 학교', key: 'school' },
@@ -531,6 +533,7 @@ const TABLE_COLUMNS = {
   ],
   record: [
     { label: '학년도', key: 'admissionYear' },
+    { label: '학급', key: 'classGroup' },
     { label: '센터명', key: 'center' },
     { label: '학생명', key: 'name' },
     { label: '현재 학교', key: 'school' },
@@ -543,6 +546,7 @@ const TABLE_COLUMNS = {
   ],
   ps: [
     { label: '학년도', key: 'admissionYear' },
+    { label: '학급', key: 'classGroup' },
     { label: '센터명', key: 'center' },
     { label: '학생명', key: 'name' },
     { label: '현재 학교', key: 'school' },
@@ -554,6 +558,7 @@ const TABLE_COLUMNS = {
   ],
   interview: [
     { label: '학년도', key: 'admissionYear' },
+    { label: '학급', key: 'classGroup' },
     { label: '센터명', key: 'center' },
     { label: '학생명', key: 'name' },
     { label: '현재 학교', key: 'school' },
@@ -610,6 +615,8 @@ function renderMainTable() {
   const filterYear = document.getElementById('filter-admission-year');
   if (filterSchool) filterSchool.style.display = (CURRENT_MENU === 'dashboard' || CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
   if (filterYear) filterYear.style.display = (CURRENT_MENU === 'dashboard' || CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
+  const filterClass = document.getElementById('filter-class-group');
+  if (filterClass) filterClass.style.display = (CURRENT_MENU === 'dashboard' || CURRENT_MENU === 'info' || CURRENT_MENU === 'record' || CURRENT_MENU === 'ps' || CURRENT_MENU === 'interview') ? 'inline-block' : 'none';
   
   headerRow.innerHTML = '';
   tbody.innerHTML = '';
@@ -635,7 +642,7 @@ function renderMainTable() {
     const th = document.createElement('th');
     th.style.textAlign = 'center';
     
-    if (['center', 'name', 'school', 'targetSchool', 'psStatus', 'recordScoreOnly', 'passRound1', 'passFinal'].includes(col.key)) {
+    if (['classGroup', 'center', 'name', 'school', 'targetSchool', 'psStatus', 'recordScoreOnly', 'passRound1', 'passFinal'].includes(col.key)) {
       th.style.cursor = 'pointer';
       
       // 기본 상태는 회색 아래쪽 삼각형
@@ -669,6 +676,7 @@ function renderMainTable() {
   const searchVal = document.getElementById('search-student').value.toLowerCase();
   const targetSchoolVal = document.getElementById('filter-target-school') ? document.getElementById('filter-target-school').value : '전체';
   const admissionYearVal = document.getElementById('filter-admission-year') ? document.getElementById('filter-admission-year').value : '전체';
+  const classGroupVal = document.getElementById('filter-class-group') ? document.getElementById('filter-class-group').value : '전체';
   const hideHiddenChecked = document.getElementById('checkbox-hide-hidden') ? document.getElementById('checkbox-hide-hidden').checked : true;
   
   const filtered = STUDENTS_LIST.filter(s => {
@@ -681,7 +689,10 @@ function renderMainTable() {
     const matchSearch = s.name.toLowerCase().includes(searchVal) || s.school.toLowerCase().includes(searchVal);
     const matchSchool = (targetSchoolVal === '전체') || (s.targetSchool === targetSchoolVal);
     const matchYear = (admissionYearVal === '전체') || (s.admissionYear === admissionYearVal);
-    return matchSearch && matchSchool && matchYear;
+    // [2026-10-09] 학급 필터 ('미정'은 학급이 비어 있는 학생)
+    const sClass = String(s.classGroup || '').trim();
+    const matchClass = (classGroupVal === '전체') || (classGroupVal === '미정' ? sClass === '' : sClass === classGroupVal);
+    return matchSearch && matchSchool && matchYear && matchClass;
   });
 
   // 선택된 컬럼 정렬 적용
@@ -1121,6 +1132,9 @@ function openEditStudent(studentLink) {
   document.getElementById('reg-name').value = student.name || '';
   document.getElementById('reg-school').value = student.school || '';
   document.getElementById('reg-target-school').value = student.targetSchool || '';
+  if (document.getElementById('reg-class-group')) {
+    document.getElementById('reg-class-group').value = student.classGroup || '';
+  }
   document.getElementById('reg-parent-phone').value = student.parentPhone || '';
   document.getElementById('reg-student-phone').value = student.studentPhone || '';
   document.getElementById('reg-student-phone').removeAttribute('readonly');
@@ -2499,6 +2513,15 @@ function bindEventHandlers() {
   if (filterSchool) {
     filterSchool.addEventListener('change', renderMainTable);
   }
+  // [2026-10-09] 학급 필터 변경 시 즉시 반영 + 학년도 필터 변경 시 즉시 반영(기존 누락)
+  const filterClassGroup = document.getElementById('filter-class-group');
+  if (filterClassGroup) {
+    filterClassGroup.addEventListener('change', renderMainTable);
+  }
+  const filterAdmissionYear = document.getElementById('filter-admission-year');
+  if (filterAdmissionYear) {
+    filterAdmissionYear.addEventListener('change', renderMainTable);
+  }
   
   // 사이드바 메뉴 클릭 스위칭 연동
   // 설정창 변경사항 추적용 플래그
@@ -2705,7 +2728,7 @@ function bindEventHandlers() {
 
     
     // 초기화 및 readonly 해제
-    ['name','school','target-school','parent-phone','student-phone','teacher'].forEach(id => {
+    ['name','school','target-school','class-group','parent-phone','student-phone','teacher'].forEach(id => {
       const el = document.getElementById('reg-' + id);
       if (el) el.value = '';
     });
@@ -2730,6 +2753,7 @@ function bindEventHandlers() {
       name: document.getElementById('reg-name').value,
       school: document.getElementById('reg-school').value,
       targetSchool: document.getElementById('reg-target-school').value,
+      classGroup: document.getElementById('reg-class-group') ? document.getElementById('reg-class-group').value : '',
       parentPhone: document.getElementById('reg-parent-phone').value,
       studentPhone: document.getElementById('reg-student-phone').value,
       teacher: teacherVal,
