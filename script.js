@@ -605,6 +605,39 @@ ${name} 학생의 링크
   });
 }
 
+// [2026-11-18] 대시보드 상단 총 인원·반별 인원 (0명인 반은 표시 안 함)
+// 기준: '숨김학생 감추기' 체크 상태만 반영 (검색·학년도·학급·지원학교 필터와 무관한 전체 인원)
+function renderDashboardSummary() {
+  const box = document.getElementById('dashboard-class-summary');
+  if (!box) return;
+  const show = CURRENT_MENU === 'dashboard' && CURRENT_ROLE !== '학생' && !isStudentsDataLoading && Array.isArray(STUDENTS_LIST) && STUDENTS_LIST.length > 0;
+  if (!show) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    box.title = '';
+    return;
+  }
+  const hideHiddenEl = document.getElementById('checkbox-hide-hidden');
+  const hideHidden = hideHiddenEl ? hideHiddenEl.checked : true;
+  const list = STUDENTS_LIST.filter(s => !(hideHidden && s.is_hidden));
+  const counts = {};
+  list.forEach(s => {
+    const key = String(s.classGroup || '').trim() || '학급 미정';
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const keys = Object.keys(counts).sort((a, b) => {
+    if (a === '학급 미정') return 1;
+    if (b === '학급 미정') return -1;
+    return a.localeCompare(b, 'ko');
+  });
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const totalText = `전체 ${list.length}명`;
+  const classTexts = keys.map(k => `${k} ${counts[k]}명`);
+  box.innerHTML = [`<strong style="color: var(--text-main);">${esc(totalText)}</strong>`].concat(classTexts.map(t => esc(t))).join(', ');
+  box.title = [totalText].concat(classTexts).join(', ');
+  box.style.display = 'block';
+}
+
 function renderMainTable() {
   const headerRow = document.getElementById('table-header-row');
   const tbody = document.getElementById('student-table-body');
@@ -702,6 +735,9 @@ function renderMainTable() {
     const matchClass = (classGroupVal === '전체') || (classGroupVal === '미정' ? sClass === '' : sClass === classGroupVal);
     return matchSearch && matchSchool && matchYear && matchClass;
   });
+
+  // [2026-11-18] 대시보드 상단 총 인원·반별 인원 갱신
+  if (typeof renderDashboardSummary === 'function') renderDashboardSummary();
 
   // 선택된 컬럼 정렬 적용
   if (currentSortCol) {
@@ -2594,6 +2630,9 @@ function bindEventHandlers() {
       
       document.getElementById('content-subtitle').textContent = subMap[CURRENT_MENU] || '';
       
+      // [2026-11-18] 대시보드가 아닌 메뉴에서는 인원 요약 숨김
+      if (typeof renderDashboardSummary === 'function') renderDashboardSummary();
+
       // UI 노출 통제 (설정 패널 활성화 관련)
       const tableContainer = document.querySelector('.table-container');
       const tableControls = document.querySelector('.table-controls');
