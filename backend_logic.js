@@ -5,6 +5,26 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 if (typeof window !== 'undefined' && window.supabase && !window.supabaseClient) {
   window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
+
+// [2026-11-18] 지원학교 미정 학생용 기본 자소서 문항 (script.js에서도 window로 공용 사용)
+const UNASSIGNED_SCHOOL_LABEL = '지원학교 미정';
+const DEFAULT_UNASSIGNED_SCHOOL = {
+  name: UNASSIGNED_SCHOOL_LABEL,
+  admissionYear: '',
+  includeSpaces: true,
+  questions: [
+    {
+      label: '통합문항',
+      content: '○ 본인이 스스로 학습계획을 세우고 학습해 온 과정과 그 과정에서 느꼈던 점, 교과 및 진로 관련 독서활동, <지원하고자 하는 학교>에 관심을 갖게 된 동기, 입학 후 자기주도적으로 본인의 꿈과 끼를 살리기 위한 활동계획 및 고등학교 졸업 후 진로계획에 관하여 구체적으로 기술하십시오.\n\n○ 본인의 인성(배려, 나눔, 협력, 타인 존중, 규칙준수 등)을 나타낼 수 있는 개인적 경험 및 이를 통해 배우고 느낀 점을 구체적으로 기술하십시오.',
+      limit: '1500',
+      details: []
+    }
+  ]
+};
+if (typeof window !== 'undefined') {
+  window.UNASSIGNED_SCHOOL_LABEL = UNASSIGNED_SCHOOL_LABEL;
+  window.DEFAULT_UNASSIGNED_SCHOOL = DEFAULT_UNASSIGNED_SCHOOL;
+}
 /**
  * 공통 Gemini API 호출 모듈 (3단계 폴백 적용)
  */
@@ -1236,6 +1256,23 @@ async function getPersonalStatementHistory(payload) {
       } catch (e) {}
     }
     
+    // [2026-11-18] 지원학교 미정 기본 문항: (구) 표시용 문항 텍스트 등록 + 미정 학생은 기본 문항으로 현재 상태 초기화
+    allSchoolsQMap[UNASSIGNED_SCHOOL_LABEL] = {};
+    DEFAULT_UNASSIGNED_SCHOOL.questions.forEach(q => {
+      allSchoolsQMap[UNASSIGNED_SCHOOL_LABEL][String(q.label)] = q.content || '';
+    });
+    if (!targetSchool) {
+      DEFAULT_UNASSIGNED_SCHOOL.questions.forEach(q => {
+        const qVal = String(q.label);
+        const uniqueKey = UNASSIGNED_SCHOOL_LABEL + '|' + qVal;
+        if (!currentStateMap[uniqueKey]) {
+          currentStateMap[uniqueKey] = {
+            qNum: qVal, question: q.content || '', answer: '', text: '', feedback: '', length: 0, version_label: UNASSIGNED_SCHOOL_LABEL
+          };
+        }
+      });
+    }
+    
     // 3. 자소서 내용 모두 로드 (시간순 정렬)
     const { data: statements } = await window.supabaseClient.from('personal_statements').select('*').eq('student_link', studentId).order('updated_at', { ascending: true });
     
@@ -1568,8 +1605,8 @@ async function registerStudent(payload) {
  * - 다른 학교(구버전) 글은 계산에서 제외 (DB 데이터는 읽기만 하며 삭제·수정하지 않음)
  */
 async function calcPsStatusForSchool(studentLink, schoolName) {
-  const school = String(schoolName || '').trim();
-  if (!school) return '작성전';
+  // [2026-11-18] 지원학교가 비어 있으면 '지원학교 미정' 기본 문항 글 기준으로 계산
+  const school = String(schoolName || '').trim() || UNASSIGNED_SCHOOL_LABEL;
   const { data: rows, error } = await window.supabaseClient.from('personal_statements')
     .select('question_no, version_label, content, updated_at')
     .eq('student_link', studentLink)

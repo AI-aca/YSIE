@@ -453,6 +453,11 @@ function detectRoleFromUrl() {
  * 정확한 학년도와 학교명을 매칭하여 문항 정보를 반환합니다.
  */
 window.findSchoolConfig = function(name, year) {
+  // [2026-11-18] 지원학교 미정(빈 값 포함)은 기본 문항 세트 반환
+  const unassignedName = String(name || '').trim();
+  if (unassignedName === '' || unassignedName === (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정')) {
+    return window.DEFAULT_UNASSIGNED_SCHOOL || null;
+  }
   if (!window.SCHOOL_QUESTIONS_MAP) return null;
   const safeName = String(name || '').trim();
   const safeYear = String(year || '').trim();
@@ -579,7 +584,7 @@ let currentSortDir = 'asc'; // 'asc' or 'desc'
  */
 function copySmsTemplate(center, name, link) {
   const url = window.location.origin + window.location.pathname + '?student=' + link;
-  const text = `[와이즈만 ${center}]
+  const text = `[연세국제영어]
 
 외고·국제고 합격을 위한 개별 관리 링크를 보내드립니다.
 이 링크를 통해 자소서 작성 및 예상질문 답변을 작성해 주세요.
@@ -861,7 +866,8 @@ function renderMainTable() {
             totalLimit += qLimit;
             
             const qNum = String(q.label).trim();
-            const tSchool = (student.targetSchool || '').trim();
+            // [2026-11-18] 지원학교 미정이면 '지원학교 미정' 기본 문항 글 기준
+            const tSchool = (student.targetSchool || '').trim() || (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정');
             let written = 0;
             
             if (PS_PROGRESS_MAP && PS_PROGRESS_MAP[student.studentLink]) {
@@ -1161,17 +1167,19 @@ function toggleScoreAccordion(studentLink, totalScore) {
 }
 
 /**
- * [2026-10-08] 지원학교 미지정 학생 자소서 진입 차단 공통 함수
+ * [2026-10-08 신설 / 2026-11-18 변경] 지원학교 미지정 학생 기능 차단 공통 함수
+ * - 자소서 창은 '지원학교 미정' 기본 문항으로 열리며, 최종제출·AI 도움받기·AI 체크리스트·자소서 예상질문 생성만 차단
  * - 지원학교가 비어 있으면 역할별 안내창(alert)을 띄우고 true 반환 → 호출부는 즉시 return
  * - 지원학교가 있으면 false 반환 → 기존 로직 그대로 진행
  */
-function blockIfTargetSchoolMissing(student) {
+function blockIfTargetSchoolMissing(student, actionName) {
   if (!student) return false;
   if (String(student.targetSchool || '').trim() !== '') return false;
+  const action = actionName || '해당 기능';
   if (CURRENT_ROLE === '학생') {
-    alert('지원학교가 아직 지정되지 않았습니다.\n지원학교가 지정된 후 자기소개서를 작성할 수 있습니다.\n담당 선생님께 문의해 주세요.');
+    alert('지원학교가 아직 지정되지 않아 [' + action + ']을(를) 진행할 수 없습니다.\n지금은 \'지원학교 미정\' 기본 문항으로 자소서 작성·저장만 가능합니다.\n지원학교 지정은 담당 선생님께 문의해 주세요.');
   } else {
-    alert('[' + (student.name || '학생') + '] 학생의 지원학교가 지정되지 않았습니다.\n대시보드의 [수정] 버튼에서 지원학교를 먼저 지정해 주세요.');
+    alert('[' + (student.name || '학생') + '] 학생의 지원학교가 지정되지 않아 [' + action + ']을(를) 진행할 수 없습니다.\n대시보드의 [수정] 버튼에서 지원학교를 먼저 지정해 주세요.');
   }
   return true;
 }
@@ -1181,10 +1189,6 @@ function blockIfTargetSchoolMissing(student) {
  */
 let ACTIVE_PS_STUDENT = null;
 async function openPersonalStatementModal(studentLink, initialTab = 'manual', targetQNum = null) {
-  // [2026-10-08] 지원학교 미지정 학생은 편집창을 열지 않고 안내만 표시 (전역 상태 변경 전 차단)
-  const guardStudent = STUDENTS_LIST.find(s => String(s.studentLink) === String(studentLink));
-  if (blockIfTargetSchoolMissing(guardStudent)) return;
-  
   isPsDirty = false; // 창 열 때 센서 초기화
   ACTIVE_PS_STUDENT = studentLink;
   
@@ -1197,7 +1201,8 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
   if (!student) return;
   
   document.getElementById('ps-modal-title').textContent = `${student.name} 학생의 자기소개서 편집 및 피드백`;
-  document.getElementById('ps-school-name').textContent = `지원 학교: ${student.targetSchool || ''}`;
+  // [2026-11-18] 지원학교 미정이면 '지원학교 미정' 표기 (편집창 내부 문항 매칭 기준값으로도 사용됨)
+  document.getElementById('ps-school-name').textContent = `지원 학교: ${(student.targetSchool || '').trim() || (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정')}`;
   
   // 락 잠금 여부에 따른 경고 및 버튼 비활성화
   const isLocked = student.psStatus === '최종제출';
@@ -1316,7 +1321,8 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
   
   // 동적 질문 바인딩 (학교별 맞춤 문항 연동)
   const schoolMap = window.SCHOOL_QUESTIONS_MAP || [];
-  const studentSchool = (student.targetSchool || '').trim();
+  // [2026-11-18] 지원학교 미정이면 '지원학교 미정' 기본 문항 사용
+  const studentSchool = (student.targetSchool || '').trim() || (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정');
   const studentYear = (student.admissionYear || '').trim();
   
   // 1순위: 학교명과 학년도가 모두 일치하는 세트
@@ -1330,6 +1336,11 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
   // 3순위: 위 조건에 모두 실패 시 이름만 일치하는 첫 번째 항목으로 폴백
   if (!matchedSchool) {
     matchedSchool = schoolMap.find(s => s.name === studentSchool);
+  }
+  
+  // [2026-11-18] 지원학교 미정 → 기본 문항
+  if (!matchedSchool && studentSchool === (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정')) {
+    matchedSchool = window.DEFAULT_UNASSIGNED_SCHOOL || null;
   }
   
   const questions = (matchedSchool && matchedSchool.questions && matchedSchool.questions.length > 0)
@@ -2330,6 +2341,8 @@ async function runAIFeedbackAction() {
     alert('AI 도움받기 실행은 교사 또는 관리자 계정만 요청할 수 있습니다.');
     return;
   }
+  // [2026-11-18] 지원학교 미정 학생은 AI 도움받기 불가
+  if (blockIfTargetSchoolMissing(STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT)), 'AI 도움받기')) return;
   
   const qNum = document.getElementById('ps-question-selector').value;
   const displayQNum = String(qNum).startsWith('문항') ? String(qNum) : '문항' + qNum;
@@ -3037,7 +3050,7 @@ function bindEventHandlers() {
     
     const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT));
     // [2026-10-08] 상태 판정은 현재 지원학교 글(및 꼬리표 없는 구형 글)만 계산, 다른 학교(구버전) 글은 제외
-    const curSchoolForStatus = String((student && student.targetSchool) || '').trim();
+    const curSchoolForStatus = String((student && student.targetSchool) || '').trim() || (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정');
     let totalTextLength = 0;
     hData.current.forEach(curr => {
       const curLabel = String(curr.version_label || '').trim();
@@ -3276,6 +3289,8 @@ function bindEventHandlers() {
     
     // 💡 작성 안 된 문항 검증 로직 시작
     const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT));
+    // [2026-11-18] 지원학교 미정 학생은 최종제출 불가
+    if (blockIfTargetSchoolMissing(student, '최종 제출')) return;
     const schoolMap = window.SCHOOL_QUESTIONS_MAP || [];
     const matchedSchool = window.findSchoolConfig(student.targetSchool, student.admissionYear);
     
@@ -4373,7 +4388,7 @@ async function runSingleAIQuestions(studentId, mode) {
   const isPsMode = mode === 'ps' || mode === '자소서';
   
   // [2026-10-08] 자소서 예상질문 생성은 지원학교 지정 학생만 허용 (생기부 모드는 영향 없음)
-  if (isPsMode && blockIfTargetSchoolMissing(student)) return;
+  if (isPsMode && blockIfTargetSchoolMissing(student, '자소서 예상질문 생성')) return;
   
   if (isPsMode) {
     if (student.psStatus !== '최종제출') {
@@ -4602,6 +4617,8 @@ window.saveMemo = async function() {
 
 window.generateChecklist = async function() {
   if (!ACTIVE_PS_STUDENT) return;
+  // [2026-11-18] 지원학교 미정 학생은 AI 체크리스트 불가
+  if (blockIfTargetSchoolMissing(STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT)), 'AI 체크리스트')) return;
   
   const qNum = document.getElementById('ps-question-selector').value;
   const textVal = window.getCurrentPsText ? window.getCurrentPsText(true) : document.getElementById('ps-content-textarea').value;
@@ -4670,8 +4687,6 @@ window.generateChecklist = async function() {
 window.openPsViewerModal = async function(studentLink) {
   const student = STUDENTS_LIST.find(s => String(s.studentLink) === String(studentLink));
   if (!student) return;
-  // [2026-10-08] 지원학교 미지정 학생은 뷰어를 열지 않고 안내만 표시
-  if (blockIfTargetSchoolMissing(student)) return;
   
   const titleEl = document.getElementById('ps-viewer-modal-title');
   if (titleEl) titleEl.textContent = `${student.name} 학생의 자소서 전체 뷰어`;
@@ -4689,7 +4704,8 @@ window.openPsViewerModal = async function(studentLink) {
       const questions = (matchedSchool && matchedSchool.questions) ? matchedSchool.questions : [];
 
       let html = '';
-      const tSchool = (student.targetSchool || '').trim();
+      // [2026-11-18] 지원학교 미정이면 '지원학교 미정' 기본 문항 글 표시
+      const tSchool = (student.targetSchool || '').trim() || (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정');
 
       questions.forEach(qData => {
         const qKey = qData.label.trim();
