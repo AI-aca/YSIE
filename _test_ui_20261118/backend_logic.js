@@ -1,0 +1,1998 @@
+// Supabase 클라이언트 초기화
+const SUPABASE_URL = 'https://seuovjrvfcwvzphvvfga.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNldW92anJ2ZmN3dnpwaHZ2ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTA5NDMsImV4cCI6MjEwNDQyNjk0M30.a4HIZIRfL2ktUFjYmmaAeai7YblEg8U0ZDztsQmx3wA';
+
+if (typeof window !== 'undefined' && window.supabase && !window.supabaseClient) {
+  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+// [2026-11-18] 지원학교 미정 학생용 기본 자소서 문항 (script.js에서도 window로 공용 사용)
+const UNASSIGNED_SCHOOL_LABEL = '지원학교 미정';
+const DEFAULT_UNASSIGNED_SCHOOL = {
+  name: UNASSIGNED_SCHOOL_LABEL,
+  admissionYear: '',
+  includeSpaces: true,
+  questions: [
+    {
+      label: '통합문항',
+      content: '○ 본인이 스스로 학습계획을 세우고 학습해 온 과정과 그 과정에서 느꼈던 점, 교과 및 진로 관련 독서활동, <지원하고자 하는 학교>에 관심을 갖게 된 동기, 입학 후 자기주도적으로 본인의 꿈과 끼를 살리기 위한 활동계획 및 고등학교 졸업 후 진로계획에 관하여 구체적으로 기술하십시오.\n\n○ 본인의 인성(배려, 나눔, 협력, 타인 존중, 규칙준수 등)을 나타낼 수 있는 개인적 경험 및 이를 통해 배우고 느낀 점을 구체적으로 기술하십시오.',
+      limit: '1500',
+      details: []
+    }
+  ]
+};
+if (typeof window !== 'undefined') {
+  window.UNASSIGNED_SCHOOL_LABEL = UNASSIGNED_SCHOOL_LABEL;
+  window.DEFAULT_UNASSIGNED_SCHOOL = DEFAULT_UNASSIGNED_SCHOOL;
+}
+/**
+ * 공통 Gemini API 호출 모듈 (3단계 폴백 적용)
+ */
+async function callGeminiAPI(apiKey, systemPrompt, userPrompt, forceModels = null) {
+  let key = apiKey;
+  if (!key) {
+    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    key = settings ? settings.setting_value : '';
+  }
+  if (!key) throw new Error('Gemini API 키가 설정되지 않았습니다.');
+  
+  const models = forceModels ? forceModels : ['gemini-3.1-pro-preview', 'gemini-3.7-flash'];
+  let lastError = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const currentModel = models[i];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${key}`;
+    
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            { role: 'user', parts: [{ text: `[시스템 지시사항]\n${systemPrompt}\n\n[사용자 요청 데이터]\n${userPrompt}` }] }
+          ],
+          generationConfig: { temperature: 0.2 },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+          return data.candidates[0].content.parts[0].text;
+        }
+      } else {
+        lastError = new Error(`Gemini API 오류 (${currentModel}): ` + await response.text());
+      }
+    } catch (e) {
+      lastError = new Error(`Gemini API 통신 실패 (${currentModel}): ` + e.message);
+    }
+  }
+  throw lastError || new Error('모든 Gemini 모델 호출에 실패했습니다.');
+}
+
+async function callGeminiWithFallback(systemPrompt, userPrompt, forceModels = null) {
+  return await callGeminiAPI('', systemPrompt, userPrompt, forceModels);
+}
+
+async function saveStudentMemo(studentLink, memo) {
+  try {
+    const { error } = await window.supabaseClient.from('students').update({ student_memo: memo }).eq('student_link', studentLink);
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function getAIChecklist(studentLink, qNum) {
+  try {
+    const typeKey = '문항' + qNum + '_체크리스트';
+    const { data } = await window.supabaseClient.from('ai_feedback_history')
+      .select('feedback')
+      .eq('student_link', studentLink)
+      .eq('type', typeKey)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      return { success: true, checklist: data[0].feedback };
+    }
+    return { success: true, checklist: null };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function generateAIChecklist(studentLink, qNum, statementText) {
+  try {
+    // 1. 해당 학생의 지원 학교 및 문항 내용 조회
+    let qContent = '';
+    let adminReqText = '';
+    const parsedQNum = qNum.includes('|') ? qNum.split('|')[1] : qNum;
+    const targetSchoolName = qNum.includes('|') ? qNum.split('|')[0] : '';
+    const { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentLink).single();
+    if (student) {
+      const tSchool = targetSchoolName || student.targetSchool || student.target_school;
+      const { data: settingsRow } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'schools').single();
+      if (settingsRow && settingsRow.setting_value) {
+        try {
+          const schoolsData = JSON.parse(settingsRow.setting_value);
+          const matchedSchool = schoolsData.find(s => s.name === tSchool);
+          if (matchedSchool && matchedSchool.questions) {
+            let qRow = matchedSchool.questions.find(q => String(q.label) === String(parsedQNum));
+            if (qRow) {
+              qContent = qRow.content || '';
+              if (qRow.details && qRow.details.length > 0) {
+                const titles = qRow.details.map((d, idx) => `${idx + 1}. ${d.title}`).join(', ');
+                adminReqText = `학생은 다음의 세부 주제들에 대해 작성해야 한다: ${titles}`;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('설정 데이터 파싱 에러:', e);
+        }
+      }
+    }
+
+    const { data: fbPromptData, error: promptErr } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_checklist').single();
+    if (promptErr || !fbPromptData || !fbPromptData.setting_value) {
+      throw new Error('수파베이스에서 체크리스트 프롬프트를 불러오지 못했습니다.');
+    }
+    let systemPrompt = fbPromptData.setting_value;
+    
+    let userPrompt = `[문항 ${parsedQNum}번 정보]\n`;
+    if (qContent) userPrompt += `질문: ${qContent}\n\n`;
+    if (adminReqText) {
+      userPrompt += `[관리자 요구조건]:\n${adminReqText}\n\n`;
+    }
+    userPrompt += `[학생의 실제 작성 내용]:\n${statementText}\n\n`;
+    if (adminReqText) {
+      userPrompt += `[지시사항]:\n관리자의 요구조건 텍스트 자체를 학생이 쓴 글로 오해하지 말고, 학생의 실제 작성 내용만을 대상으로 요구조건이 잘 충족되었는지 평가하라.\n`;
+    }
+    
+    const feedbackText = await callGeminiWithFallback(systemPrompt, userPrompt, ['gemini-3.7-flash', 'gemini-3.6-flash']);
+    
+    const targetType = '문항[' + qNum + ']_체크리스트';
+    const fbPayload = {
+      student_link: studentLink,
+      type: targetType,
+      feedback: feedbackText,
+      created_at: new Date().toISOString()
+    };
+    await window.supabaseClient.from('ai_feedback_history').delete().eq('student_link', studentLink).eq('type', targetType);
+    const { error: fbErr } = await window.supabaseClient.from('ai_feedback_history').insert(fbPayload);
+    if (fbErr) throw new Error('체크리스트 저장 실패: ' + fbErr.message);
+    
+    return { success: true, checklist: feedbackText };
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function generateAIFeedback(studentId, qNum, statementText) {
+  try {
+    const parsedQNum = qNum.includes('|') ? qNum.split('|')[1] : qNum;
+    const targetSchoolName = qNum.includes('|') ? qNum.split('|')[0] : '';
+    
+    const { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).single();
+    if (!student) return { success: false, error: '학생을 찾을 수 없습니다.' };
+    
+    const { data: settingsData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'schools').single();
+    const schools = settingsData ? JSON.parse(settingsData.setting_value) : [];
+    
+    const tSchool = targetSchoolName || student.targetSchool || student.target_school;
+    const targetSchoolData = schools.find(s => s.name === tSchool);
+    
+    let qContent = '';
+    if (targetSchoolData && targetSchoolData.questions) {
+      const qRow = targetSchoolData.questions.find(q => String(q.label) === String(parsedQNum));
+      if (qRow) qContent = qRow.content || '';
+    }
+
+    // 수파베이스 DB에서 기밀 프롬프트 로드 (절대 덮어쓰지 않음, 뒤에 제약사항만 덧붙임)
+    const { data: fbPromptData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_feedback').single();
+    let baseSystemPrompt = fbPromptData ? fbPromptData.setting_value : "당신은 최고 수준의 입시 컨설턴트입니다.";
+    
+    const cleanQNum = String(parsedQNum).replace(/^문항\s*/, '');
+    const formatConstraint = `\n\n🚨[출력 서식 및 어투 강제 규칙 - 반드시 지킬 것]
+이 출력은 학생의 자기소개서 [문항 ${cleanQNum}]에 대한 피드백입니다.
+당신에게 부여된 기존의 프롬프트 지시사항(평가 기준 등)을 모두 따르되, **최종 출력물의 형태는 반드시 아래의 4가지 항목으로만 구성된 마크다운(Markdown) 형식**이어야 합니다. (기존의 '종합 총평' 등 다른 임의의 항목은 절대 생성하지 마세요)
+
+### [문항 ${cleanQNum}]
+#### 💡 돋보이는 강점
+- (예: ~하는 역량이 매우 우수합니다.)
+
+#### ⚠️ 치명적 단점
+- (예: ~부분의 구체성이 다소 부족합니다. 단점이 없을 경우 불릿 없이 '치명적인 단점은 보이지 않습니다.' 한 줄만 출력)
+
+#### 🔧 구체적 수정제안
+- (예: ~에 대한 경험을 추가해 보시길 권장합니다.)
+
+#### 📝 문항 총평
+(불릿 기호 없이 1개의 문단으로 서술. 절대 200자 초과 금지)
+
+🚨[제약 사항]
+1. 불릿 포인트(-)를 사용하는 항목(강점, 수정제안)의 개수는 학생의 자소서 답변 분량에 비례하여 **최소 2개에서 최대 5개 범위 내에서 유동적으로 조절**하십시오. 답변이 짧으면 2~3개, 충분히 길면 4~5개를 출력하십시오. (단, 치명적 단점 항목은 이 개수 규칙에서 제외하며 3번 규칙을 따르십시오.)
+2. 4가지 항목(강점, 단점, 수정제안, 총평)의 모든 문장 끝맺음은 예외 없이 **'~습니다.', '~합니다.', '~바랍니다.' 형태의 정중한 경어체로만 통일**하십시오. 다른 형태의 종결 어미는 일절 허용되지 않습니다.
+3. '치명적 단점' 항목에는 칭찬이나 장점을 절대 섞어 쓰지 마세요. 만약 학생의 글에 치명적인 단점이 없다면 억지로 만들지 말고 반드시 '치명적인 단점은 없습니다.'라는 단 한 문장만 출력하세요.
+`;
+    const systemPrompt = baseSystemPrompt + formatConstraint;
+    
+    // 내용 구조화 (상세분할 태그 → 줄바꿈 변환, 라벨 주입은 프론트엔드에서 완료됨)
+    let formattedStatement = statementText.replace(/\[상세분할\]/g, '\n\n');
+    
+    let userPrompt = `[학생명]: ${student.student_name || student.name || '학생'}\n[지원 학교]: ${student.target_school || student.targetSchool || ''}\n`;
+    userPrompt += `[문항 ${parsedQNum}번 정보]\n`;
+    if (qContent) userPrompt += `질문: ${qContent}\n\n`;
+    userPrompt += `[학생 작성 내용]:\n${formattedStatement}`;
+    
+    const feedbackText = await callGeminiWithFallback(systemPrompt, userPrompt, ['gemini-3.7-flash', 'gemini-3.6-flash']);
+    
+    let safeFeedback = feedbackText;
+    if (/^[=+\-@]/.test(safeFeedback) || safeFeedback.startsWith('===')) {
+      safeFeedback = "'" + safeFeedback;
+    }
+    
+    const targetType = '문항[' + qNum + ']_도움받기';
+    await window.supabaseClient.from('ai_feedback_history').delete().eq('student_link', studentId).eq('type', targetType);
+    const fbPayload = {
+      student_link: studentId,
+      type: targetType,
+      feedback: safeFeedback,
+      created_at: new Date().toISOString()
+    };
+    const { error: fbErr } = await window.supabaseClient.from('ai_feedback_history').insert(fbPayload);
+    if (fbErr) throw new Error('ai_feedback_history DB 저장 실패: ' + fbErr.message);
+    
+    const timeStr = new Date().toISOString(); 
+    await window.supabaseClient.from('students').update({ cover_letter_feedback_ai: timeStr }).eq('student_link', studentId);
+    
+    return { success: true, feedback: feedbackText };
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function resetAIFeedback(studentId, typeStr) {
+  try {
+    const res = await window.supabaseClient.from('ai_feedback_history').delete().eq('student_link', studentId).eq('type', typeStr);
+    if (res.error) throw new Error(res.error.message);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * 8. AI 면접 예상 질문 생성 (generateAIQuestions)
+ */
+async function generateAIQuestions(studentId, type) {
+  try {
+    const { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).single();
+    if (!student) return { success: false, error: '학생을 찾을 수 없습니다.' };
+    
+    let systemPrompt = '';
+    let studentInputText = '';
+    
+    const levelConstraint = "\n\n🚨[중요 제약사항]\n질문의 대상은 '중학교 3학년' 학생입니다. 생성된 질문의 단어 사용이나 개념 내용을 '중학교 심화' 수준 이상으로 절대 끌어올리지 마십시오. 대학 전공 수준의 과도하게 전문적이거나 현학적인 어휘의 사용을 엄격히 금지합니다. 중학생 수준에서 이해하고 충분히 답변할 수 있는 현실적인 난이도와 일상적인 어휘를 사용하여 질문을 구성하십시오. 질문 내용이 원본(자소서/생기부)의 수준을 비약적으로 뛰어넘거나 없는 개념을 지레짐작하여 덧붙이지 마십시오.";
+    const formatConstraint = `\n\n🚨🚨[출력 서식 강제 규칙 - 위반 시 치명적 오류 발생]🚨🚨
+모든 예상 질문 세트는 반드시 아래의 JSON 배열(Array of Objects) 서식을 100% 동일하게 준수하여 출력하십시오. 마크다운 기호(\`\`\`json 등)나 덧붙이는 말 없이 오직 순수한 JSON 텍스트만 출력해야 합니다.
+질문 어투는 실제 면접관이 질문하듯 '~해 주세요.', '~하세요.' 형식의 정중하고 명확한 구어체/경어체를 사용하십시오.
+
+[
+  {
+    "qNum": 1,
+    "mainCategory": "대분류명",
+    "subCategory": "중분류명",
+    "subTitle": "질문의 핵심 요약 키워드",
+    "mainQuestion": "실제 면접관이 질문하듯 학생에게 던지는 메인 면접 질문 내용",
+    "intention": "이 질문을 통해 확인하고자 하는 학생의 역량 및 평가 요소",
+    "tailQuestions": [
+      "메인 질문에 이어질 수 있는 추가 압박 질문 1"
+    ]
+  }
+]`;
+    
+    if (type === '자소서') {
+      const { data: settingsData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'schools').single();
+      const schools = settingsData ? JSON.parse(settingsData.setting_value) : [];
+      const targetSchoolData = schools.find(s => s.name === (student.target_school || ''));
+      
+      const { data: statements } = await window.supabaseClient.from('personal_statements').select('*').eq('student_link', studentId).order('updated_at', { ascending: false });
+      let statementText = '';
+      const processedQNums = new Set();
+      const targetSchoolName = (student.targetSchool || student.target_school || '').trim();
+      
+      (statements || []).forEach(row => {
+        const rowSchool = (row.version_label || '').trim();
+        if (rowSchool && rowSchool !== targetSchoolName) return;
+        
+        if (row.content && row.content.trim() !== '' && !processedQNums.has(row.question_no)) {
+          processedQNums.add(row.question_no);
+          
+          let formattedContent = row.content;
+          if (row.content.includes('[상세분할]') && targetSchoolData && targetSchoolData.questions) {
+            const qData = targetSchoolData.questions.find(q => String(q.label) === String(row.question_no));
+            if (qData && qData.details && qData.details.length > 0) {
+              const parts = row.content.split('[상세분할]');
+              formattedContent = parts.map((part, idx) => {
+                const title = qData.details[idx] ? qData.details[idx].title : `세부항목 ${idx + 1}`;
+                return `[${title}]:\n${part.trim()}`;
+              }).join('\n\n');
+            } else {
+              formattedContent = row.content.replace(/\[상세분할\]/g, '\n\n');
+            }
+          } else {
+            formattedContent = row.content.replace(/\[상세분할\]/g, '\n\n');
+          }
+          
+          statementText += '=== 문항 ' + row.question_no + ' ===\n' + formattedContent + '\n\n';
+        }
+      });
+      studentInputText = statementText;
+      if (!studentInputText || studentInputText.trim() === '') return { success: false, error: '분석할 자소서 내용이 존재하지 않습니다.' };
+      
+      // 이미 위에서 targetSchoolData를 구했으므로 그대로 사용 가능
+      let schoolQuestionsPrompt = '';
+      if (targetSchoolData && targetSchoolData.questions) {
+        schoolQuestionsPrompt = "\n[지원 학교 자소서 문항 정보]\n";
+        targetSchoolData.questions.forEach((q, idx) => {
+          schoolQuestionsPrompt += `${idx + 1}. ${q.label}: ${q.content} (제한: ${q.limit}자)\n`;
+        });
+      }
+      const { data: jasosoPromptData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_q_jasoso').single();
+      const baseJasosoPrompt = jasosoPromptData && jasosoPromptData.setting_value ? jasosoPromptData.setting_value : "프롬프트 로드 실패";
+      systemPrompt = baseJasosoPrompt + levelConstraint + formatConstraint + schoolQuestionsPrompt;
+    } else if (type === '생기부') {
+      const { data: record } = await window.supabaseClient.from('parsed_records').select('parsed_content').eq('student_link', studentId).single();
+      studentInputText = record ? record.parsed_content : '';
+      if (!studentInputText || studentInputText.trim() === '') return { success: false, error: '분석할 생기부 텍스트 데이터가 존재하지 않습니다.' };
+      
+      const { data: senggibuPromptData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_q_senggibu').single();
+      const baseSenggibuPrompt = senggibuPromptData && senggibuPromptData.setting_value ? senggibuPromptData.setting_value : "프롬프트 로드 실패";
+      systemPrompt = baseSenggibuPrompt + levelConstraint + formatConstraint;
+    }
+    
+    const userPrompt = "[학생명]: " + (student.student_name || '학생') + "\n[데이터]:\n" + studentInputText;
+    const questionText = await callGeminiWithFallback(systemPrompt, userPrompt);
+    
+    const { data: existingPract } = await window.supabaseClient.from('interview_practice').select('*').eq('student_link', studentId).maybeSingle();
+    let updateObj = { 
+      student_link: studentId, 
+      created_at: new Date().toISOString()
+    };
+    
+    if (type === '자소서') {
+      updateObj.statement_questions_json = questionText;
+    } else {
+      updateObj.record_questions_json = questionText;
+    }
+    
+    let questErr;
+    if (existingPract && existingPract.id) {
+      const res = await window.supabaseClient.from('interview_practice').update(updateObj).eq('id', existingPract.id);
+      questErr = res.error;
+    } else {
+      const res = await window.supabaseClient.from('interview_practice').insert(updateObj);
+      questErr = res.error;
+    }
+    if (questErr) throw new Error('interview_practice DB 저장 실패: ' + questErr.message);
+    
+    const timeStr = new Date().toISOString(); 
+    const studentUpdateObj = type === '자소서' 
+      ? { expected_questions_ai_ps: '자소서' + timeStr } 
+      : { expected_questions_ai_record: '생기부' + timeStr };
+    await window.supabaseClient.from('students').update(studentUpdateObj).eq('student_link', studentId);
+    
+    return { success: true, questions: questionText };
+  } catch (err) {
+    throw err;
+  }
+}
+
+/**
+ * 9. 생기부 점수 정량/정성 평가 (evaluateStudentRecord)
+ */
+async function evaluateStudentRecord(studentId, recordText) {
+  try {
+    let { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).maybeSingle();
+    if (!student) {
+      const { data: studentById } = await window.supabaseClient.from('students').select('*').eq('id', studentId).maybeSingle();
+      student = studentById;
+    }
+    if (!student) throw new Error('학생 정보를 수파베이스에서 찾을 수 없습니다.');
+    
+    const effectiveLink = student.student_link || student.id;
+    let textToAnalyze = recordText;
+    
+    if (!textToAnalyze || textToAnalyze.trim() === "") {
+      // 1차: parsed_records 캐시 테이블에서 텍스트 조회
+      const { data: cached } = await window.supabaseClient.from('parsed_records').select('parsed_content').eq('student_link', effectiveLink).maybeSingle();
+      if (cached && cached.parsed_content && cached.parsed_content.length >= 100) {
+        textToAnalyze = cached.parsed_content;
+      } else {
+        return { success: false, error: 'NOT_PARSED' };
+      }
+    }
+    
+    if (!textToAnalyze || textToAnalyze.length < 100) {
+      throw new Error('분석할 생기부 PDF 문서 또는 파싱 텍스트가 없습니다. 먼저 생기부 PDF를 업로드해 주십시오.');
+    }
+
+    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    const apiKey = settings ? settings.setting_value : '';
+    if (!apiKey) throw new Error('Gemini API 키가 수파베이스 settings 테이블에 설정되지 않았습니다.');
+    
+    // 수파베이스에서 영역별 프롬프트 로드
+    const [{ data: dCommon }, { data: dArea1 }, { data: dArea2 }, { data: dArea3 }] = await Promise.all([
+      window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_evaluate_common').single(),
+      window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_evaluate_area1').single(),
+      window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_evaluate_area2').single(),
+      window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_evaluate_area3').single()
+    ]);
+    const commonSystemInstruction = dCommon ? dCommon.setting_value : '';
+    const hallucinationLockRule = `
+[🚨 파싱 절대 규칙: 성적 위조 및 환각 생성 엄격 금지]
+1. mathGrades, sciGrades 등 교과 성적(등급) 데이터를 추출할 때, 반드시 생기부 본문의 <6. 교과학습발달상황> 표(Table) 또는 하단 <성적 통지표> 영역에 "A, B, C, D, E, P" 등 등급 문자가 명시적으로 기재된 팩트 데이터만 추출할 것.
+2. <세부능력 및 특기사항>에 적힌 "(1학기) 과학:", "(2학기) 수학:" 등의 텍스트를 근거로 성적표가 존재한다고 멋대로 유추하거나, A등급일 것이라고 지어내는(환각) 행위를 전면 금지함. 표에 없으면 없는 것임.
+`;
+    const PROMPT_AREA_1 = commonSystemInstruction + "\n" + hallucinationLockRule + (dArea1 ? dArea1.setting_value : '');
+    const PROMPT_AREA_2 = commonSystemInstruction + "\n" + hallucinationLockRule + (dArea2 ? dArea2.setting_value : '');
+    const PROMPT_AREA_3 = commonSystemInstruction + "\n" + hallucinationLockRule + (dArea3 ? dArea3.setting_value : '');
+    
+    const PROMPT_OVERALL_REPORT = commonSystemInstruction + `
+[최종 단계: 사정관 종합 총평 작성 가이드라인]
+다음은 앞서 정밀하게 분석 및 추출된 학생의 생기부 채점 근거 JSON 데이터입니다. 
+당신은 대한민국 외고 및 국제고등학교 입학 사정관입니다.
+(🚨특명: 수학, 과학 과목의 성적이나 탐구 실적 부재를 절대로 감점 요인으로 언급하지 마십시오. 외고/국제고 평가는 영어, 국어, 사회 중심입니다.)
+(🚨특명: "성적이 누락/미산출되었다"는 사실 자체를 감점 요인이나 아쉬운 점으로 지적하거나 언급하는 행위를 전면 금지합니다.)
+(🚨특명: 과거 과학고 시절의 잔재인 [학업역량], [진로적합성], [인성] 3대 영역으로 나누어 설명하지 마십시오.)
+(🚨특명: 영어 과목에서 성취도 'B' 이하가 단 하나라도 존재할 경우 160점 만점 기준에 치명타이므로 총평에 "매우 부정적"으로 서술하십시오.)
+(🚨특명: 국어 또는 사회(역사) 과목에서 성취도 'B' 이하가 존재할 경우, 점수 경합 시 동점자 사정 컷오프 위험이 있으므로 "다소 부정적"인 아쉬운 요인으로 서술하십시오.)
+
+아래 지시된 내용을 모두 포함하여 자연스럽게 이어지는 하나의 단일 문자열로 작성할 것 (🚨JSON 파싱 에러 방지를 위해 줄바꿈 문자 \\n 등은 절대 사용 금지, 띄어쓰기로만 문장 구분). 
+학생의 문과적 소양(영어/국어/사회 성취도), 출결 성실성, 그리고 학폭 기록 유무(발견 시 치명적 결격 사유로 강하게 지적)를 바탕으로 객관적이고 냉철하게 사정관의 [종합 총평]을 서술할 것.
+
+반드시 아래 JSON 포맷을 유지하여 순수 JSON만 반환하십시오.
+{
+  "overallReport": ""
+}
+`;
+
+    const areas = [{ id: 1, prompt: PROMPT_AREA_1 }];
+    let finalParsedData = {};
+      const models = ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview'];
+    let pendingAreas = [...areas];
+    let lastError = null;
+    const studentUserPrompt = "[학생명]: " + (student.student_name || '학생') + "\n[생기부 파싱 텍스트]:\n" + textToAnalyze;
+
+    for (let attempt = 0; attempt < models.length; attempt++) {
+      if (pendingAreas.length === 0) break;
+      const currentModel = models[attempt];
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+
+      const reqPromises = pendingAreas.map(area => {
+        return fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: area.prompt }, { text: studentUserPrompt }] }],
+            generationConfig: { temperature: 0, response_mime_type: "application/json", maxOutputTokens: 65536 },
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+          })
+        }).then(res => res.json().then(data => ({ res, data, area })));
+      });
+
+      const responses = await Promise.allSettled(reqPromises);
+      let nextPending = [];
+
+      for (let i = 0; i < responses.length; i++) {
+        const r = responses[i];
+        const area = pendingAreas[i];
+        if (r.status === 'fulfilled') {
+          const { res, data } = r.value;
+          let success = false;
+          if (res.ok && data.candidates && data.candidates[0].content.parts[0].text) {
+             try {
+                let rawText = data.candidates[0].content.parts[0].text;
+                const sIdx = rawText.indexOf('{');
+                if (sIdx !== -1) {
+                    let braceCount = 0;
+                    let eIdx = -1;
+                    for (let i = sIdx; i < rawText.length; i++) {
+                        if (rawText[i] === '{') braceCount++;
+                        else if (rawText[i] === '}') braceCount--;
+                        if (braceCount === 0) {
+                            eIdx = i;
+                            break;
+                        }
+                    }
+                    if (eIdx !== -1) rawText = rawText.substring(sIdx, eIdx + 1);
+                }
+                const chunk = JSON.parse(rawText);
+                Object.assign(finalParsedData, chunk);
+                success = true;
+             } catch(e) {
+                lastError = new Error('JSON Parsing Error in Area ' + area.id + ': ' + e.message);
+             }
+          } else {
+             lastError = new Error('API Error in Area ' + area.id + ': ' + JSON.stringify(data));
+          }
+          if (!success) nextPending.push(area);
+        } else {
+          nextPending.push(area);
+          lastError = new Error('Fetch failed: ' + r.reason.message);
+        }
+      }
+      pendingAreas = nextPending;
+    }
+
+    if (pendingAreas.length > 0) {
+      throw lastError || new Error('최대 재시도 횟수를 초과했습니다. 실패한 Area 개수: ' + pendingAreas.length);
+    }
+
+    const deduplicate = (arr) => arr ? [...new Set(arr)] : [];
+    finalParsedData.mathSciBooksExtracted = deduplicate(finalParsedData.mathSciBooksExtracted);
+    finalParsedData.generalBooksExtracted = deduplicate(finalParsedData.generalBooksExtracted);
+    finalParsedData.mathSciAwardsExtracted = deduplicate(finalParsedData.mathSciAwardsExtracted);
+    finalParsedData.totalAwardsExtracted = deduplicate(finalParsedData.totalAwardsExtracted);
+    finalParsedData.mathResearchExtracted = deduplicate(finalParsedData.mathResearchExtracted);
+    finalParsedData.sciResearchExtracted = deduplicate(finalParsedData.sciResearchExtracted);
+
+    const stage2UserPrompt = "[학생 채점 근거 JSON 데이터]:\n" + JSON.stringify(finalParsedData, null, 2);
+    let reportSuccess = false;
+    
+    for (let attempt = 0; attempt < models.length; attempt++) {
+      const currentModel = models[attempt];
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+      try {
+        const reportRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: PROMPT_OVERALL_REPORT }, { text: stage2UserPrompt }] }],
+            generationConfig: { temperature: 0, response_mime_type: "application/json", maxOutputTokens: 65536 },
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+          })
+        });
+        const reportData = await reportRes.json();
+        if (reportRes.ok && reportData.candidates && reportData.candidates[0].content.parts[0].text) {
+          let rawReport = reportData.candidates[0].content.parts[0].text;
+          const sIdx = rawReport.indexOf('{');
+          if (sIdx !== -1) {
+              let braceCount = 0;
+              let eIdx = -1;
+              for (let i = sIdx; i < rawReport.length; i++) {
+                  if (rawReport[i] === '{') braceCount++;
+                  else if (rawReport[i] === '}') braceCount--;
+                  if (braceCount === 0) {
+                      eIdx = i;
+                      break;
+                  }
+              }
+              if (eIdx !== -1) rawReport = rawReport.substring(sIdx, eIdx + 1);
+          }
+          const parsedReport = JSON.parse(rawReport);
+          finalParsedData.overallReport = parsedReport.overallReport || '';
+          reportSuccess = true;
+          break;
+        } else {
+          lastError = new Error('Report API Error: ' + JSON.stringify(reportData));
+        }
+      } catch(e) {
+        lastError = new Error('Report Parsing Error: ' + e.message);
+      }
+    }
+    
+    if (!reportSuccess) {
+      console.warn("총평 생성 실패. 빈값으로 진행합니다.", lastError);
+      finalParsedData.overallReport = "";
+    }
+
+    const evaluation = calculateRecordScore(finalParsedData);
+    const numericTotalScore = evaluation.englishScore - evaluation.deduction;
+    const totalScoreStr = evaluation.totalScore;
+    const { area1, area2, area3 } = evaluation;
+    const sName = student.student_name || student.name || '학생';
+    const targetSchoolName = student.target_school || student.targetSchool || '';
+    
+    const engKeys = Object.keys(finalParsedData.englishGrades || {});
+    const korKeys = Object.keys(finalParsedData.koreanGrades || {});
+    const socKeys = Object.keys(finalParsedData.socialGrades || {});
+    const expectedTerms = ['2-1', '2-2', '3-1'];
+    let isMissing = false;
+    expectedTerms.forEach(term => {
+      if (!engKeys.includes(term) || !korKeys.includes(term) || !socKeys.includes(term)) isMissing = true;
+    });
+    
+    const warningMsg = isMissing ? `> 🚨 **[주의] 생기부에 성적이 누락된 학기가 감지되어 대체 알고리즘(<표2> 기준)에 따라 점수를 산출하였습니다.**\n\n` : ``;
+
+    const scoreHeader = `# 📄 ${sName} 학생 외고·국제고 입학 대비 생기부 정밀 평가 보고서\n\n` +
+                  warningMsg +
+                        `### 🎯 채점 결과 요약\n` +
+                        `* **🔥 종합 생기부 평가 점수**: ${totalScoreStr} / 160점 만점\n\n---\n`;    
+                        
+    let overallText = finalParsedData.overallReport || "총평 데이터가 없습니다.";
+    let legacyReport = "\n---\n## 🏁 사정관 종합 총평\n" + overallText + "\n\n";
+    legacyReport += "<!-- ADMIN_ONLY_START -->\n---\n## 🔍 관리자 전용: 외고·국제고 채점 로직(영어/출결/동점자/학폭) 주요 근거\n\n";
+    
+    try {
+      const Object = window.Object || global.Object;
+      const Array = window.Array || global.Array;
+      const String = window.String || global.String;
+      const JSON = window.JSON || global.JSON;
+      const cards = generateScoreCardsData(finalParsedData, evaluation);
+      cards.forEach((c, idx) => {
+        legacyReport += `### [항목 ${idx + 1}] ${c.title.replace(/^\d+\.\s*/, '')}\n`;
+        legacyReport += `- **판정 결과 및 획득 점수**: ${c.score} / ${c.max} 점\n`;
+        legacyReport += `- **판정 근거 및 증거 문장**:\n`;
+        if (Array.isArray(c.quote) && c.quote.length > 0) {
+          legacyReport += c.quote.map(q => `> "${q}"`).join('\n') + '\n';
+        } else {
+          legacyReport += `> 기록 없음\n`;
+        }
+        legacyReport += `- **사정관 상세 분석**: ${c.desc}\n\n`;
+      });
+    } catch(e) {
+      legacyReport += "문항별 점수 파싱 중 오류 발생\n\n";
+    }
+    legacyReport += "<!-- ADMIN_ONLY_END -->\n\n---\n";
+    legacyReport += "## ⚙️ SYSTEM_DATA (프론트엔드 연동용 JSON 파라미터)\n\n```json\n";
+    legacyReport += JSON.stringify(finalParsedData, null, 2);
+    legacyReport += "\n```\n";
+
+    const analysisText = scoreHeader + legacyReport;
+
+    // record_basis 안전 저장 (SELECT -> UPDATE or INSERT)
+    const { data: existingBasis } = await window.supabaseClient.from('record_basis').select('id').eq('student_link', effectiveLink).maybeSingle();
+    const basisPayload = {
+      student_link: effectiveLink,
+      target_school: targetSchoolName,
+      total_score: evaluation.totalScore,
+      analysis_report: analysisText,
+      score_details_json: typeof finalParsedData === 'string' ? finalParsedData : JSON.stringify(finalParsedData),
+      created_at: new Date().toISOString()
+    };
+
+    let basisErr;
+    if (existingBasis && existingBasis.id) {
+      const res = await window.supabaseClient.from('record_basis').update(basisPayload).eq('id', existingBasis.id);
+      basisErr = res.error;
+    } else {
+      const res = await window.supabaseClient.from('record_basis').insert(basisPayload);
+      basisErr = res.error;
+    }
+
+    if (basisErr) {
+      console.error('record_basis DB 저장 오류:', basisErr);
+      throw new Error('record_basis DB 저장 실패: ' + basisErr.message);
+    }
+    const { error: studentScoreErr } = await window.supabaseClient.from('students').update({ record_score_ai: totalScoreStr }).eq('id', student.id);
+    if (studentScoreErr) console.error('students score update error:', studentScoreErr);
+
+    return { success: true, score: totalScoreStr, analysisReport: analysisText, scoreDetails: finalParsedData };
+  } catch (err) {
+    throw err;
+  }
+}
+
+/**
+ * 순수 파싱 로직 (PDF -> OCR 텍스트 추출 후 캐시 저장)
+ */
+async function parseStudentRecord(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    let { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).maybeSingle();
+    if (!student) {
+      const { data: studentById } = await window.supabaseClient.from('students').select('*').eq('id', studentId).maybeSingle();
+      student = studentById;
+    }
+    if (!student) throw new Error('학생 정보를 수파베이스에서 찾을 수 없습니다.');
+    
+    const effectiveLink = student.student_link || student.id;
+    if (!student.record_link || (!student.record_link.startsWith('http://') && !student.record_link.startsWith('https://'))) {
+      throw new Error('유효한 생기부 PDF 링크가 없습니다. 구글 드라이브에 파일을 업로드해주세요.');
+    }
+
+    const textToAnalyze = await extractTextFromPdf(student.record_link);
+    if (!textToAnalyze || textToAnalyze.length < 100) {
+      throw new Error('파싱된 텍스트가 너무 짧거나 추출에 실패했습니다.');
+    }
+
+    const { data: existingParsed } = await window.supabaseClient.from('parsed_records').select('id').eq('student_link', effectiveLink).maybeSingle();
+    let prErr;
+    if (existingParsed && existingParsed.id) {
+      const res = await window.supabaseClient.from('parsed_records').update({ parsed_content: textToAnalyze }).eq('id', existingParsed.id);
+      prErr = res.error;
+    } else {
+      const res = await window.supabaseClient.from('parsed_records').insert({ student_link: effectiveLink, student_name: student.student_name || student.name || '', parsed_content: textToAnalyze });
+      prErr = res.error;
+    }
+    
+    if (prErr) {
+      throw new Error('파싱 텍스트 캐시 저장에 실패했습니다: ' + prErr.message);
+    }
+    
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * PDF 텍스트 추출 모듈 (extractTextFromPdf)
+ */
+async function extractTextFromPdf(fileUrl) {
+  try {
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) throw new Error('파일을 다운로드 할 수 없습니다.');
+    const blob = await fileRes.blob();
+    
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    const apiKey = settings ? settings.setting_value : '';
+    if (!apiKey) throw new Error('Gemini API 키가 수파베이스 settings 테이블에 설정되지 않았습니다.');
+    
+    const { data: pdfPromptData } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'prompt_pdf').single();
+    const prompt = pdfPromptData ? pdfPromptData.setting_value : "생활기록부 PDF 문서를 분석하여 텍스트로 추출하라.";
+    
+    const models = ['gemini-3.7-flash', 'gemini-3.6-flash'];
+    let lastError = null;
+    
+    for (let i = 0; i < models.length; i++) {
+      const currentModel = models[i];
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: "application/pdf", data: base64Data } }
+            ]
+          }],
+          generationConfig: { temperature: 0, maxOutputTokens: 65536 },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
+        })
+      });
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        if (responseData.candidates && responseData.candidates.length > 0) {
+          const candidate = responseData.candidates[0];
+          // 안전 필터(SAFETY) 작동 여부 감지 및 방어 코드
+          if (candidate.finishReason === 'SAFETY') {
+            console.warn('안전 필터에 의해 차단되었습니다.', candidate.safetyRatings);
+            lastError = new Error(`${currentModel} API 차단: 안전 필터 발동`);
+            continue; // 차단 시 즉시 뻗지 않고 다음 모델로 재시도
+          }
+          // content 및 parts 속성이 안전하게 존재하는지 확인
+          if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+            return candidate.content.parts[0].text;
+          }
+        }
+      }
+      lastError = new Error(`${currentModel} API 호출 실패 (상태 코드: ${response.status})`);
+    }
+    throw lastError;
+  } catch (e) {
+    throw new Error("PDF 텍스트 추출 중 오류가 발생했습니다: " + e.message);
+  }
+}
+
+/**
+ * 생기부 PDF 업로드 API (Supabase Storage 연동)
+ */
+async function uploadStudentRecordPdf(studentId, fileObject, fileName) {
+  try {
+    let { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).maybeSingle();
+    if (!student) {
+      const { data: studentById } = await window.supabaseClient.from('students').select('*').eq('id', studentId).maybeSingle();
+      student = studentById;
+    }
+    if (!student) throw new Error('학생을 찾을 수 없습니다.');
+    
+    const sName = student.student_name || '이름없음';
+    const sCenter = student.center_name || '센터없음';
+    let effectiveLink = student.student_link;
+    if (!effectiveLink) {
+      // 12자리 예쁜 고유 식별 코드 생성 (긴 UUID 대신 일통된 짧은 길이 유지)
+      effectiveLink = Math.random().toString(36).substring(2, 14);
+    }
+    // RLS 정책(UPDATE 권한 누락) 충돌을 방지하기 위해 파일명에 타임스탬프를 부여하여 항상 INSERT가 일어나도록 강제합니다.
+    const newFileName = `record_${effectiveLink}_${Date.now()}.pdf`;
+    
+    const { data, error } = await window.supabaseClient.storage.from('student_records').upload(newFileName, fileObject, {
+      contentType: 'application/pdf',
+      upsert: false
+    });
+    
+    if (error) throw error;
+    
+    const { data: publicUrlData } = window.supabaseClient.storage.from('student_records').getPublicUrl(newFileName);
+    const fileUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+    
+    const updateObj = { record_link: fileUrl };
+    if (effectiveLink) {
+      updateObj.student_link = effectiveLink;
+    }
+    
+    let { error: updateErr } = await window.supabaseClient.from('students').update(updateObj).eq('id', student.id);
+    if (updateErr) {
+      console.warn('Update with student_link failed, retrying record_link only:', updateErr);
+      const { error: retryErr } = await window.supabaseClient.from('students').update({ record_link: fileUrl }).eq('id', student.id);
+      if (retryErr) {
+        throw new Error('DB 레코드 링크 갱신 실패: ' + retryErr.message);
+      }
+    }
+    
+    return { success: true, url: fileUrl };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+function calculateRecordScore(data) {
+  const gradePoints = { 'A': 40, 'B': 36, 'C': 32, 'D': 28, 'E': 24 };
+  
+  const fillMissingGrades = (gradesObj) => {
+    const valid = ['A', 'B', 'C', 'D', 'E'];
+    const getG = (s) => { let v = (gradesObj[s]||'').toUpperCase(); return valid.includes(v) ? v : null; };
+    let g21 = getG('2-1'); let g22 = getG('2-2'); let g31 = getG('3-1'); let g32 = getG('3-2');
+    
+    // 1개 학기 성적이 없는 경우 (같은 학년의 다른 학기 성적으로 대체)
+    if (!g21 && g22) g21 = g22;
+    if (!g22 && g21) g22 = g21;
+    if (!g31 && g32) g31 = g32;
+    if (!g32 && g31) g32 = g31;
+    
+    // 1개 학년의 성적이 모두 없는 경우 (다른 학년의 동일 학기 성적으로 대체)
+    if (!g21 && !g22 && g31 && g32) { g21 = g31; g22 = g32; }
+    if (!g31 && !g32 && g21 && g22) { g31 = g21; g32 = g22; }
+    
+    // 위 로직을 거치면 '1개 학기 성적만 있는 경우'도 자연스럽게 도배됨
+    
+    // 혹시라도 전부 비어있다면 기본값 A
+    return { '2-1': g21||'A', '2-2': g22||'A', '3-1': g31||'A', '3-2': g32||'A' };
+  };
+
+  let eGrades = fillMissingGrades(data.englishGrades || {});
+  let kGrades = fillMissingGrades(data.koreanGrades || {});
+  let sGrades = fillMissingGrades(data.socialGrades || {});
+  
+  let totalEnglish = 160;
+  let hasBUnder = false; // 영어, 국어, 사회 중 하나라도 B 이하인지 체크
+  
+  ['2-1', '2-2', '3-1', '3-2'].forEach(sem => {
+    let g = eGrades[sem];
+    totalEnglish -= (40 - gradePoints[g]);
+    if (g !== 'A') hasBUnder = true; // 영어 성적 B 이하 시 사이렌 발동
+  });
+  
+  let att = data.attendance || {};
+  let abs = parseInt(att.unexcusedAbsences) || 0;
+  let lates = parseInt(att.unexcusedLates) || 0;
+  let early = parseInt(att.unexcusedEarlyLeaves) || 0;
+  let res = parseInt(att.unexcusedResults) || 0;
+  
+  let totalAbsences = abs + Math.floor((lates + early + res) / 3);
+  let deduction = Math.min(4.0, totalAbsences * 0.4);
+  
+  let finalScore = totalEnglish - deduction;
+  
+  const tbSequence = [
+    { sem: '3-2', type: '국어', g: kGrades['3-2'] },
+    { sem: '3-2', type: '사회', g: sGrades['3-2'] },
+    { sem: '3-1', type: '국어', g: kGrades['3-1'] },
+    { sem: '3-1', type: '사회', g: sGrades['3-1'] },
+    { sem: '2-2', type: '국어', g: kGrades['2-2'] },
+    { sem: '2-2', type: '사회', g: sGrades['2-2'] },
+    { sem: '2-1', type: '국어', g: kGrades['2-1'] },
+    { sem: '2-1', type: '사회', g: sGrades['2-1'] }
+  ];
+  let tbStringArr = [];
+  tbSequence.forEach(tb => {
+    let g = tb.g;
+    if (g !== 'A') hasBUnder = true;
+    tbStringArr.push(g);
+  });
+  
+  let scoreString = `${finalScore.toFixed(1).replace('.0', '')} 점 (${tbStringArr.slice(0,4).join('-')})`;
+  if (hasBUnder) scoreString += ' 🚨';
+  
+  return {
+    totalScore: scoreString,
+    deduction: deduction,
+    englishScore: totalEnglish,
+    tbSequence: tbSequence,
+    area1: totalEnglish,
+    area2: 0,
+    area3: 0
+  };
+}
+function generateScoreCardsData(d, scores, role = '관리자') {
+  const cards = [];
+  
+  cards.push({
+    key: 'english_grades',
+    range: '🔍 2-1 ~ 3-2 영어 성취도',
+    title: '1. 영어 내신 성적',
+    max: 160,
+    desc: '4개 학기 성취도 수준별 점수 합산 (A=40, B=36, C=32, D=28, E=24)',
+    score: scores.englishScore,
+    quote: [
+      `2학년 1학기: ${(d.englishGrades && d.englishGrades['2-1']) || 'A'}`,
+      `2학년 2학기: ${(d.englishGrades && d.englishGrades['2-2']) || 'A'}`,
+      `3학년 1학기: ${(d.englishGrades && d.englishGrades['3-1']) || 'A'}`,
+      `3학년 2학기: ${(d.englishGrades && d.englishGrades['3-2']) || 'A'}`
+    ]
+  });
+
+  cards.push({
+    key: 'attendance_deduction',
+    range: '🔍 미인정 결석, 지각, 조퇴, 결과',
+    title: '2. 출결 감점',
+    max: 0,
+    desc: '미인정 결석 1일당 0.4점 감점 (지각/조퇴/결과 3회당 결석 1일 산정, 최대 4점 감점)',
+    score: -(scores.deduction || 0),
+    quote: [
+      `미인정 결석: ${(d.attendance && d.attendance.unexcusedAbsences) || 0}회`,
+      `미인정 지각/조퇴/결과 합산: ${((d.attendance && d.attendance.unexcusedLates) || 0) + ((d.attendance && d.attendance.unexcusedEarlyLeaves) || 0) + ((d.attendance && d.attendance.unexcusedResults) || 0)}회`
+    ]
+  });
+
+  let tbWarning = false;
+  let tbWarningIdx = -1;
+  const tbQuotes = scores.tbSequence ? scores.tbSequence.map((tb, i) => {
+    let text = `${i+1}순위 (${tb.sem} ${tb.type}): ${tb.g}`;
+    if (tb.g !== 'A') {
+      tbWarning = true;
+      if (tbWarningIdx === -1) tbWarningIdx = i + 1;
+      text += ' 🚨 (컷오프 감점 요인)';
+    }
+    return text;
+  }) : [];
+
+  cards.push({
+    key: 'tie_breaker',
+    range: '🔍 국어 및 사회(역사) 성취도',
+    title: tbWarning ? '3. 동점자 사정 우선순위 ⚠️ [컷오프 위험]' : '3. 동점자 사정 우선순위 (안정)',
+    max: 0,
+    desc: tbWarning 
+      ? `점수 경합 시 컷오프 위험이 존재합니다. (발목 잡는 1순위: ${tbWarningIdx}순위)` 
+      : '점수 경합 시 아래 순서대로 컷오프 처리됩니다. (전 과목 A로 동점자 경합 시 최상위권 유리)',
+    score: 0,
+    quote: tbQuotes
+  });
+
+  const sv = d.schoolViolence || '';
+  cards.push({
+    key: 'school_violence',
+    range: '🔍 행동특성 및 종합의견, 출결 특기사항 등',
+    title: '4. 기타 학폭 등 특기사항 (점수 무관)',
+    max: 0,
+    desc: '학교폭력 가해 기록 등 결격 사유 탐지 (160점 산출에는 미반영되나 서류 평가 시 치명적 타격)',
+    score: 0,
+    quote: sv && sv !== '없음' 
+      ? [`⚠️ 학폭 기록 발견: ${sv}`] 
+      : ['✅ 학폭 관련 특이사항 발견되지 않음']
+  });
+
+  return cards;
+}
+async function verifyPassword(payload) {
+  try {
+    const pwd = payload.password || payload;
+    
+    const { data: adminSetting } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', '관리자').single();
+    const { data: teacherSetting } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', '교사').single();
+    
+    if (!adminSetting && !teacherSetting) return { success: false, error: 'DB에 설정된 비밀번호가 없습니다.' };
+    
+    if (adminSetting && adminSetting.setting_value === pwd) return { success: true, role: '관리자' };
+    if (teacherSetting && teacherSetting.setting_value === pwd) return { success: true, role: '교사' };
+    
+    return { success: false, error: '비밀번호가 올바르지 않습니다.' };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+// 환경설정 로드
+async function getSettings() {
+  try {
+    const { data: settings } = await window.supabaseClient.from('settings').select('*');
+    const basic = {};
+    let schools = [];
+
+    if (settings) {
+      settings.forEach(s => { 
+        if (s.setting_key === 'schools') {
+          try { schools = JSON.parse(s.setting_value); } catch(e){}
+        } else {
+          basic[s.setting_key] = s.setting_value;
+        }
+      });
+    }
+
+    if (!schools || schools.length === 0) {
+      const { data: qRows } = await window.supabaseClient.from('school_questions').select('*').order('school_name').order('item_no');
+      const schoolMap = {};
+      if (qRows) {
+        qRows.forEach(r => {
+          if (!schoolMap[r.school_name]) schoolMap[r.school_name] = [];
+          schoolMap[r.school_name].push({ label: r.item_no, content: r.content, limit: String(r.limit_chars || 0) });
+        });
+      }
+      schools = Object.keys(schoolMap).map(sName => ({ name: sName, questions: schoolMap[sName] }));
+    }
+
+    return { success: true, basic, schools };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function getStudentsList() {
+    try {
+      const { data: students } = await window.supabaseClient.from('students').select('*');
+      if (!students) return [];
+      
+      const { data: practices } = await window.supabaseClient.from('interview_practice').select('student_link, answers_json');
+      const practiceMap = {};
+      if (practices) {
+        practices.forEach(p => {
+          practiceMap[p.student_link] = p.answers_json || '';
+        });
+      }
+      
+      // 🗂️ 수파베이스 Storage 버킷(생기부 폴더)에 실제 파일이 존재하는지 1회 단일 조회로 교차 검증
+      let existingFileSet = new Set();
+      try {
+        const { data: storageFiles } = await window.supabaseClient.storage.from('student_records').list('', { limit: 1000 });
+        if (storageFiles) {
+          storageFiles.forEach(f => existingFileSet.add(f.name));
+        }
+      } catch (e) {
+        console.warn('Storage file list fetch error:', e);
+      }
+      // 📝 파싱 이력 유무 교차 검증 (프론트엔드 버튼 동적 렌더링용)
+      const { data: parsedRecords } = await window.supabaseClient.from('parsed_records').select('student_link');
+      const parsedSet = new Set();
+      if (parsedRecords) {
+        parsedRecords.forEach(p => parsedSet.add(p.student_link));
+      }
+      
+      return students.map(s => {
+        let validRecordPdf = '';
+        if (s.record_link && (s.record_link.startsWith('http://') || s.record_link.startsWith('https://'))) {
+          try {
+            const urlObj = new URL(s.record_link);
+            const pathParts = urlObj.pathname.split('/');
+            const rawFileName = decodeURIComponent(pathParts[pathParts.length - 1]);
+            const actualFileName = rawFileName.split('?')[0];
+            
+            if (existingFileSet.size > 0) {
+              if (existingFileSet.has(actualFileName)) {
+                validRecordPdf = s.record_link;
+              } else {
+                // Storage 폴더에서 파일이 삭제되었다면 DB 레코드 링크도 자동으로 초기화
+                window.supabaseClient.from('students').update({ record_link: null }).eq('id', s.id).then();
+              }
+            } else {
+              validRecordPdf = s.record_link;
+            }
+          } catch(err) {
+            validRecordPdf = s.record_link;
+          }
+        }
+        
+        return {
+          id: s.id,
+          is_hidden: s.is_hidden || false,
+          admissionYear: s.admission_year || '',
+          center: s.center_name || '',
+          name: s.student_name || '',
+          school: s.school || '',
+          targetSchool: s.target_school || '',
+          classGroup: s.class_group || '',
+          parentPhone: s.parent_contact || '',
+          studentPhone: s.student_contact || '',
+          teacher: s.teacher || s.math_teacher || '',
+          mathTeacher: s.teacher || s.math_teacher || '',
+          sciTeacher: s.science_teacher || '',
+          recordPdf: validRecordPdf,
+          recordScore: s.record_score_ai || '',
+          psSheet: '',
+          studentLink: s.student_link || s.id || '',
+          psStatus: s.cover_letter_status || '',
+          psFeedback: s.cover_letter_feedback_ai || '',
+          questions: (s.expected_questions_ai_ps || '') + '|' + (s.expected_questions_ai_record || '') || (s.expected_questions_ai || ''),
+          studentAnswers: practiceMap[s.student_link || s.id] || '',
+          isParsed: parsedSet.has(s.student_link || s.id),
+          passRound1: s.result_1st || '대기',
+          passRound2: s.result_2nd || '대기',
+          passFinal: s.result_final || '대기',
+          student_memo: s.student_memo || '',
+          isReference: !!s.is_reference
+        };
+      });
+    } catch (err) {
+      console.error('getStudentsList error:', err);
+      return [];
+    }
+}
+
+// 학생 숨김 처리 상태 토글
+async function toggleStudentHidden(studentLink, isHidden) {
+  try {
+    const { error } = await window.supabaseClient.from('students').update({ is_hidden: isHidden }).eq('student_link', studentLink);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('toggleStudentHidden error:', err);
+    throw err;
+  }
+}
+
+// 학생 상태 변경(합불)
+async function updatePassStatus(payload) {
+  try {
+    let updates = {};
+    if (payload.passType === 'passRound1') {
+      updates['result_1st'] = payload.passValue;
+      if (payload.passValue === '불') {
+        updates['result_2nd'] = '불';
+        updates['result_final'] = '불';
+      } else if (payload.passValue === '합' || payload.passValue === '대기') {
+        updates['result_2nd'] = '대기';
+        updates['result_final'] = '대기';
+      }
+    } else if (payload.passType === 'passRound2') {
+      updates['result_2nd'] = payload.passValue;
+      if (payload.passValue === '불') {
+        updates['result_final'] = '불';
+      } else if (payload.passValue === '합' || payload.passValue === '대기') {
+        updates['result_final'] = '대기';
+      }
+    } else if (payload.passType === 'passFinal') {
+      updates['result_final'] = payload.passValue;
+    } else {
+      updates[payload.passType] = payload.passValue;
+    }
+    
+    await window.supabaseClient.from('students').update(updates).eq('student_link', payload.studentId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+
+// --- 누락된 자소서 및 학생 관리 함수 복구 ---
+
+async function getPersonalStatementHistory(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    
+    // 1. 학생 기본 정보 로드
+    const { data: student } = await window.supabaseClient.from('students').select('*').eq('student_link', studentId).single();
+    if (!student) throw new Error('학생 정보를 찾을 수 없습니다.');
+    
+    const targetSchool = (student.target_school || student.targetSchool || '').trim();
+
+    const currentStateMap = {};
+    
+    // 2. 학교 문항 로드 (settings 조회)
+    let qMap = {};
+    let allSchoolsQMap = {}; // 전체 학교 문항 저장용
+    
+    const { data: settingsRow } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'schools').single();
+    if (settingsRow && settingsRow.setting_value) {
+      try {
+        const schoolsData = JSON.parse(settingsRow.setting_value);
+        
+        // 전체 학교의 문항 데이터를 allSchoolsQMap에 저장
+        schoolsData.forEach(school => {
+          allSchoolsQMap[school.name] = {};
+          if (school.questions) {
+            school.questions.forEach(q => {
+              allSchoolsQMap[school.name][String(q.label)] = q.content || '';
+            });
+          }
+        });
+
+        // 기존 현재 학교(targetSchool) qMap 및 currentStateMap 초기화 로직 유지
+        if (targetSchool) {
+          const studentYear = (student.admission_year || '').trim();
+          let matchedSchool = schoolsData.find(s => s.name === targetSchool && (s.admissionYear || '').trim() === studentYear);
+          if (!matchedSchool) matchedSchool = schoolsData.find(s => s.name === targetSchool && !(s.admissionYear || '').trim());
+          if (!matchedSchool) matchedSchool = schoolsData.find(s => s.name === targetSchool);
+          
+          if (matchedSchool && matchedSchool.questions) {
+            matchedSchool.questions.forEach(q => {
+              const qVal = String(q.label);
+              qMap[qVal] = q.content || '';
+              const uniqueKey = targetSchool + '|' + qVal;
+              if (!currentStateMap[uniqueKey]) {
+                currentStateMap[uniqueKey] = {
+                  qNum: qVal, question: q.content || '', answer: '', text: '', feedback: '', length: 0, version_label: targetSchool
+                };
+              }
+            });
+          }
+        }
+      } catch (e) {}
+    }
+    
+    // [2026-11-18] 지원학교 미정 기본 문항: (구) 표시용 문항 텍스트 등록 + 미정 학생은 기본 문항으로 현재 상태 초기화
+    allSchoolsQMap[UNASSIGNED_SCHOOL_LABEL] = {};
+    DEFAULT_UNASSIGNED_SCHOOL.questions.forEach(q => {
+      allSchoolsQMap[UNASSIGNED_SCHOOL_LABEL][String(q.label)] = q.content || '';
+    });
+    if (!targetSchool) {
+      DEFAULT_UNASSIGNED_SCHOOL.questions.forEach(q => {
+        const qVal = String(q.label);
+        const uniqueKey = UNASSIGNED_SCHOOL_LABEL + '|' + qVal;
+        if (!currentStateMap[uniqueKey]) {
+          currentStateMap[uniqueKey] = {
+            qNum: qVal, question: q.content || '', answer: '', text: '', feedback: '', length: 0, version_label: UNASSIGNED_SCHOOL_LABEL
+          };
+        }
+      });
+    }
+    
+    // 3. 자소서 내용 모두 로드 (시간순 정렬)
+    const { data: statements } = await window.supabaseClient.from('personal_statements').select('*').eq('student_link', studentId).order('updated_at', { ascending: true });
+    
+    // 4. 히스토리 스냅샷 빌드 (Event Sourcing 방식)
+    const historyLogs = [];
+    let lastUpdatedAt = null;
+
+    (statements || []).forEach(s => {
+      const qNumStr = String(s.question_no);
+      
+      let qText = '';
+      if (s.version_label && allSchoolsQMap[s.version_label]) {
+        qText = allSchoolsQMap[s.version_label][qNumStr] || allSchoolsQMap[s.version_label]['문항' + qNumStr] || '';
+      }
+      if (!qText) {
+        qText = qMap[qNumStr] || qMap['문항' + qNumStr] || '';
+      }
+      
+      const cleanVersionLabel = (s.version_label || '').trim();
+      const uniqueKey = cleanVersionLabel + '|' + s.question_no;
+
+      if (!currentStateMap[uniqueKey]) {
+        currentStateMap[uniqueKey] = {
+          qNum: s.question_no, question: qText, answer: '', text: '', feedback: '', length: 0, version_label: cleanVersionLabel, id: s.id
+        };
+      }
+      
+      // 값이 null이 아닐 때만 덮어쓰기 (자소서/피드백 중 변경된 것만 들어오므로)
+      if (s.content !== null && s.content !== undefined) {
+        currentStateMap[uniqueKey].text = s.content;
+        currentStateMap[uniqueKey].answer = s.content;
+        currentStateMap[uniqueKey].length = s.content.length;
+        currentStateMap[uniqueKey].version_label = s.version_label;
+        currentStateMap[uniqueKey].id = s.id;
+      }
+      // 과거 기록 호환성 유지 (구버전 피드백)
+      if (s.teacher_feedback !== null && s.teacher_feedback !== undefined) {
+        currentStateMap[uniqueKey].feedback = s.teacher_feedback;
+      }
+
+      // 스냅샷 그룹화 (동일한 저장 시점)
+      if (lastUpdatedAt !== s.updated_at) {
+        // 이전 스냅샷의 현재 상태를 깊은 복사하여 저장
+        historyLogs.push({
+          timestamp: s.updated_at,
+          type: '자소서', // 히스토리는 이제 무조건 자소서만 취급
+          texts: JSON.parse(JSON.stringify(Object.values(currentStateMap)))
+        });
+        lastUpdatedAt = s.updated_at;
+      } else {
+        // 같은 시점 배치 업데이트의 경우, 배열 마지막 스냅샷의 texts를 갱신
+        if (historyLogs.length > 0) {
+          historyLogs[historyLogs.length - 1].texts = JSON.parse(JSON.stringify(Object.values(currentStateMap)));
+        }
+      }
+    });
+
+    // 별도의 teacher_feedbacks 테이블에서 피드백 최신본 덮어쓰기 (시간순 정렬 강제)
+    const { data: teacherFeedbacks } = await window.supabaseClient.from('teacher_feedbacks').select('*').eq('student_link', studentId).order('updated_at', { ascending: true });
+    
+    // 명시적인 학교 꼬리표가 붙은 피드백을 추적하기 위한 방어벽
+    const explicitFeedbackKeys = new Set();
+
+    (teacherFeedbacks || []).forEach(f => {
+      let qNumStr = String(f.question_no);
+      
+      const vLabel = (f.version_label || '').trim();
+      let targetKey;
+      
+      if (vLabel) {
+        // 새로 업데이트된 3단 고유키 방식 (정확히 해당 학교의 탭에 꽂음)
+        targetKey = vLabel + '|' + qNumStr;
+      } else {
+        // 구형 데이터 호환성 유지
+        targetKey = targetSchool + '|' + qNumStr;
+      }
+
+      // [핵심 차단 로직] 꼬리표가 없는 유령 데이터(!vLabel)가, 이미 방어벽이 쳐진 자리를 덮어쓰려 하면 즉시 튕겨냄
+      if (!vLabel && explicitFeedbackKeys.has(targetKey)) {
+        return; // 하극상 무시하고 다음으로 넘어감
+      }
+
+      if (currentStateMap[targetKey]) {
+        currentStateMap[targetKey].feedback = f.feedback || '';
+        // 명확한 꼬리표(vLabel)가 있는 정상 최신 데이터가 자리를 차지하면, 그 자리에 철창(방어벽)을 내려 잠금
+        if (vLabel) explicitFeedbackKeys.add(targetKey);
+      } else if (!vLabel) {
+        // 타겟 학교 키가 없으면 동일한 qNum을 가진 아무거나 덮어쓰기 (호환성 유지)
+        for (let key in currentStateMap) {
+           // 덮어쓰기 호환성 로직에서도 철창이 쳐진 자리는 건드리지 못하게 방어
+           if (currentStateMap[key].qNum === qNumStr && !explicitFeedbackKeys.has(key)) {
+               currentStateMap[key].feedback = f.feedback || '';
+           }
+        }
+      }
+    });
+
+    const currentArr = Object.values(currentStateMap);
+    
+    // 5. AI 피드백 히스토리 로드
+    let aiHistory = [];
+    const { data: aiFbRows } = await window.supabaseClient.from('ai_feedback_history').select('*').eq('student_link', studentId).order('created_at', { ascending: true });
+    if (aiFbRows) {
+      aiHistory = aiFbRows.map(r => ({
+        timestamp: r.created_at,
+        type: r.type,
+        feedback: r.feedback
+      }));
+    }
+
+    return {
+      success: true,
+      current: currentArr,
+      data: currentArr,
+      history: historyLogs.reverse(), // 최신이 위로 오게 역순 정렬
+      aiHistory: aiHistory,
+      studentInfo: {
+        name: student.student_name,
+        school: student.school,
+        targetSchool: targetSchool,
+        status: student.cover_letter_status
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function savePersonalStatement(payload) {
+  try {
+    const { studentId, contents, writer, isAllEmpty } = payload;
+    const now = new Date().toISOString();
+    
+    const { data: student } = await window.supabaseClient.from('students').select('cover_letter_status, target_school').eq('student_link', studentId).single();
+    if (student) {
+      if (isAllEmpty && student.cover_letter_status !== '작성전') {
+        await window.supabaseClient.from('students').update({ cover_letter_status: '작성전' }).eq('student_link', studentId);
+      } else if (!isAllEmpty && student.cover_letter_status === '작성전') {
+        await window.supabaseClient.from('students').update({ cover_letter_status: '작성중' }).eq('student_link', studentId);
+      }
+    }
+
+    // 변경된 항목을 자소서와 피드백으로 분리
+    const newSnapshots = {};
+    const feedbackUpdates = {};
+
+    contents.forEach(c => {
+      if (c.type === '자소서') {
+        const tSchool = student ? (student.targetSchool || student.target_school || '') : '';
+        const vLabel = c.version_label || tSchool;
+        const uniqueKey = vLabel + '|' + c.qNum;
+        
+        if (!newSnapshots[uniqueKey]) {
+          newSnapshots[uniqueKey] = {
+            student_link: studentId,
+            question_no: c.qNum,
+            version_label: vLabel,
+            updated_at: now
+          };
+        }
+        newSnapshots[uniqueKey].content = c.text;
+      } else if (c.type === '피드백') {
+        const tSchool = student ? (student.targetSchool || student.target_school || '') : '';
+        const vLabel = c.version_label || tSchool;
+        const uniqueKey = vLabel + '|' + c.qNum;
+        feedbackUpdates[uniqueKey] = {
+          qNum: c.qNum,
+          vLabel: vLabel,
+          text: c.text
+        };
+      }
+    });
+
+    // 1. 자소서가 변경된 문항은 무조건 새로운 히스토리 행을 insert
+    for (const key in newSnapshots) {
+      const row = newSnapshots[key];
+      const { error: insErr } = await window.supabaseClient.from('personal_statements').insert(row);
+      if (insErr) throw insErr;
+    }
+
+    // 2. 피드백이 변경된 문항은 teacher_feedbacks 테이블에 upsert
+    for (const key in feedbackUpdates) {
+      const fbData = feedbackUpdates[key];
+      const fbPayload = {
+        student_link: studentId,
+        question_no: fbData.qNum,
+        version_label: fbData.vLabel,
+        feedback: fbData.text,
+        updated_at: now
+      };
+      const { error: updErr } = await window.supabaseClient.from('teacher_feedbacks').upsert(fbPayload, { onConflict: 'student_link,question_no,version_label' });
+      if (updErr) throw updErr;
+    }
+    
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+window.deletePersonalStatementSnapshot = async function(recordId) {
+  try {
+    const { data, error } = await window.supabaseClient
+      .from('personal_statements')
+      .delete()
+      .eq('id', recordId)
+      .select();
+    
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return { success: false, error: '삭제할 데이터를 찾지 못했습니다.' };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function submitPersonalStatement(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    await window.supabaseClient.from('students').update({ cover_letter_status: '최종제출' }).eq('student_link', studentId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function unlockPersonalStatement(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    await window.supabaseClient.from('students').update({ cover_letter_status: '작성중' }).eq('student_link', studentId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function getScoreDetailsBasis(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    const { data: record } = await window.supabaseClient.from('record_basis').select('*').eq('student_link', studentId).single();
+    if (!record) return { success: true, json: null, report: '' };
+    
+    let scoreDetails = null;
+    let scoreCards = [];
+    try {
+      scoreDetails = typeof record.score_details_json === 'string' ? JSON.parse(record.score_details_json) : record.score_details_json;
+      const calcRes = calculateRecordScore(scoreDetails);
+      scoreCards = generateScoreCardsData(scoreDetails, calcRes, '관리자');
+    } catch(e) {
+      console.error('Error generating score cards:', e);
+    }
+    
+    return {
+      success: true,
+      json: record.score_details_json,
+      report: record.analysis_report,
+      scoreCards: scoreCards,
+      timestamp: record.created_at,
+      totalScore: record.total_score
+    };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function getAIQuestions(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    const { data: practice } = await window.supabaseClient.from('interview_practice').select('*').eq('student_link', studentId).single();
+    if (!practice) return { success: true, statement_questions_json: '', record_questions_json: '' };
+    
+    return { success: true, statement_questions_json: practice.statement_questions_json || '', record_questions_json: practice.record_questions_json || '' };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function saveStudentAnswers(payload) {
+  try {
+    const { studentId, answersText } = payload;
+    const { data: existing } = await window.supabaseClient.from('interview_practice')
+      .select('id').eq('student_link', studentId).maybeSingle();
+      
+    if (existing && existing.id) {
+      const { error } = await window.supabaseClient.from('interview_practice')
+        .update({ answers_json: answersText }).eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await window.supabaseClient.from('interview_practice')
+        .insert({ student_link: studentId, answers_json: answersText });
+      if (error) throw error;
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function registerStudent(payload) {
+  try {
+    const data = payload.studentData || payload;
+    const insertObj = {
+      admission_year: data.admissionYear || '',
+      center_name: data.center || '',
+      student_name: data.name || '',
+      school: data.school || '',
+      target_school: data.targetSchool || '',
+      class_group: data.classGroup || '',
+      parent_contact: data.parentPhone || '',
+      student_contact: data.studentPhone || '',
+      teacher: data.teacher || data.mathTeacher || '',
+      student_link: data.studentLink || Math.random().toString(36).substring(2, 14),
+      cover_letter_status: '작성전',
+      is_reference: !!data.isReference
+    };
+    const { error } = await window.supabaseClient.from('students').insert([insertObj]);
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * [2026-10-08] 특정 지원학교 기준 자소서 상태 계산
+ * - 해당 학교 꼬리표(및 꼬리표 없는 구형) 문항별 최신 본문 중 공백 제외 1자 이상이 있으면 '작성중', 없으면 '작성전'
+ * - 지원학교가 비어 있으면 '작성전'
+ * - 다른 학교(구버전) 글은 계산에서 제외 (DB 데이터는 읽기만 하며 삭제·수정하지 않음)
+ */
+async function calcPsStatusForSchool(studentLink, schoolName) {
+  // [2026-11-18] 지원학교가 비어 있으면 '지원학교 미정' 기본 문항 글 기준으로 계산
+  const school = String(schoolName || '').trim() || UNASSIGNED_SCHOOL_LABEL;
+  const { data: rows, error } = await window.supabaseClient.from('personal_statements')
+    .select('question_no, version_label, content, updated_at')
+    .eq('student_link', studentLink)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error('자소서 상태 계산 실패: ' + (error.message || String(error)));
+  const seen = new Set();
+  for (const r of (rows || [])) {
+    if (r.content === null || r.content === undefined) continue;
+    const label = String(r.version_label || '').trim();
+    if (label !== '' && label !== school) continue;
+    const key = label + '|' + String(r.question_no);
+    if (seen.has(key)) continue; // 최신 본문만 판정
+    seen.add(key);
+    if (String(r.content).replace(/\s+/g, '').length > 0) return '작성중';
+  }
+  return '작성전';
+}
+
+async function updateStudent(payload) {
+  try {
+    const { studentData, originalLink } = payload;
+    const updateObj = {
+      admission_year: studentData.admissionYear || '',
+      center_name: studentData.center || '',
+      student_name: studentData.name || '',
+      school: studentData.school || '',
+      target_school: studentData.targetSchool || '',
+      class_group: studentData.classGroup || '',
+      parent_contact: studentData.parentPhone || '',
+      student_contact: studentData.studentPhone || '',
+      teacher: studentData.teacher || studentData.mathTeacher || '',
+      is_reference: !!studentData.isReference
+    };
+
+    // [2026-10-08] 지원학교가 실제로 바뀐 경우에만 자소서 상태 재계산 (새 학교 글 기준, 최종제출 잠금 해제 포함)
+    // - 재계산 실패 시 아무것도 저장하지 않고 에러 반환 (학교만 바뀌고 상태는 안 바뀌는 어긋남 방지)
+    let statusChangedTo = null;
+    const { data: prevRows, error: prevErr } = await window.supabaseClient.from('students').select('target_school, cover_letter_status').eq('student_link', originalLink).limit(1);
+    if (prevErr) throw new Error('기존 학생 정보 조회 실패: ' + (prevErr.message || String(prevErr)));
+    const prevRow = (prevRows && prevRows.length > 0) ? prevRows[0] : null;
+    const prevSchool = prevRow ? String(prevRow.target_school || '').trim() : '';
+    const newSchool = String(updateObj.target_school || '').trim();
+    if (prevRow && prevSchool !== newSchool) {
+      const newStatus = await calcPsStatusForSchool(originalLink, newSchool);
+      if (newStatus !== (prevRow.cover_letter_status || '')) {
+        updateObj.cover_letter_status = newStatus;
+        statusChangedTo = newStatus;
+      }
+    }
+
+    const { error } = await window.supabaseClient.from('students').update(updateObj).eq('student_link', originalLink);
+    if (error) throw error;
+
+    // record_basis 테이블의 target_school 독립 업데이트
+    if (updateObj.target_school) {
+      await window.supabaseClient.from('record_basis')
+        .update({ target_school: updateObj.target_school })
+        .eq('student_link', originalLink);
+    }
+
+    return { success: true, statusChangedTo: statusChangedTo };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function archiveStudent(payload) {
+  try {
+    const studentId = payload.studentId || payload;
+    const { error } = await window.supabaseClient.from('students').delete().eq('student_link', studentId);
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function hardDeleteStudent(payload) {
+  try {
+    const studentLink = payload.studentLink;
+    
+    // 1. Storage 버킷에서 해당 학생의 생기부 PDF 파일 삭제
+    const fileName = `record_${studentLink}.pdf`;
+    const { error: storageError } = await window.supabaseClient.storage.from('student_records').remove([fileName]);
+    if (storageError) {
+      console.warn('Storage file deletion error:', storageError);
+    }
+    
+    // 2. DB에서 학생 레코드 삭제 (ON DELETE CASCADE로 연결된 데이터 함께 삭제됨)
+    const { error } = await window.supabaseClient.from('students').delete().eq('student_link', studentLink);
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function saveSettings(payload) {
+  try {
+    const { settingsData } = payload;
+    if (settingsData.basic) {
+      for (const key of Object.keys(settingsData.basic)) {
+        await window.supabaseClient.from('settings').upsert({
+          setting_key: key,
+          setting_value: String(settingsData.basic[key] || '')
+        }, { onConflict: 'setting_key' });
+      }
+    }
+    if (settingsData.schools && Array.isArray(settingsData.schools)) {
+    await window.supabaseClient.from('settings').upsert({
+      setting_key: 'schools',
+      setting_value: JSON.stringify(settingsData.schools)
+    }, { onConflict: 'setting_key' });
+  }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function getFilesInFolder(payload) {
+  const korToEng = {
+    '세종국제고': 'sejong_intl',
+    '대전외고': 'daejeon_fl',
+    '충남외고': 'chungnam_fl',
+    '경기외고': 'gyeonggi_fl',
+    '경기북과학고': 'gyeonggibuk',
+    '부천과학고': 'bucheon',
+    '분당중앙과학고': 'bundang',
+    '인천진산과학고': 'incheon_jinsan',
+    '인천과학고': 'incheon',
+    '입학전형': 'admission',
+    '입학요강': 'admission',
+    '자소서': 'jaseoseo',
+    '기출문항': 'exam',
+    '기출문제': 'exam'
+  };
+  const engToKor = {
+    'sejong_intl': '세종국제고',
+    'daejeon_fl': '대전외고',
+    'chungnam_fl': '충남외고',
+    'gyeonggi_fl': '경기외고',
+    'gyeonggibuk': '경기북과학고',
+    'bucheon': '부천과학고',
+    'bundang': '분당중앙과학고',
+    'incheon_jinsan': '인천진산과학고',
+    'incheon': '인천과학고',
+    'admission': '입학전형',
+    'jaseoseo': '자소서',
+    'exam': '기출문항'
+  };
+
+  try {
+    const folderId = payload.folderId || payload;
+    const bucketName = 'school_materials';
+    
+    const { data: files, error } = await window.supabaseClient.storage.from(bucketName).list();
+    if (error) throw error;
+    
+    const resultList = files.filter(f => f.name.endsWith('.pdf')).map(f => {
+      let decodedName = null;
+      if (f.name.startsWith('ENC_')) {
+        try {
+          let b64 = f.name.replace(/^ENC_/, '').replace(/\.pdf$/, '');
+          b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4) { b64 += '='; }
+          decodedName = decodeURIComponent(escape(atob(b64)));
+        } catch(e) {
+          decodedName = decodeURIComponent(f.name);
+        }
+      } else {
+        // 영문 변환된 예쁜 이름을 다시 한글로 복구
+        let name = f.name.replace('.pdf', '');
+        for (let key in engToKor) {
+          name = name.replace(new RegExp(key, 'g'), engToKor[key]);
+        }
+        decodedName = name.replace(/_/g, ' ') + '.pdf';
+      }
+      return { f, decodedName };
+    }).filter(({ f, decodedName }) => {
+      if (folderId === 'admissions') return decodedName.includes('입학전형') || decodedName.includes('입학요강') || decodedName.includes('자소서');
+      if (folderId === 'exams') return decodedName.includes('기출문항') || decodedName.includes('기출문제');
+      return true;
+    }).map(({ f, decodedName }) => {
+      const { data: pub } = window.supabaseClient.storage.from(bucketName).getPublicUrl(f.name);
+      return { name: decodedName, url: pub.publicUrl, rawName: f.name };
+    });
+    
+    // 연도 최신순, 그 다음 학교명 가나다순 정렬
+    resultList.sort((a, b) => b.name.localeCompare(a.name));
+    
+    return { success: true, files: resultList };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function uploadGeneralPdf(payload) {
+  try {
+    const { folderId, base64Data, fileName } = payload;
+    let bucketName = 'school_materials';
+    
+    const arr = base64Data.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+    const blob = new Blob([u8arr], {type: mime});
+    
+    const korToEng = {
+      '세종국제고': 'sejong_intl',
+      '대전외고': 'daejeon_fl',
+      '충남외고': 'chungnam_fl',
+      '경기외고': 'gyeonggi_fl',
+      '경기북과학고': 'gyeonggibuk',
+      '부천과학고': 'bucheon',
+      '분당중앙과학고': 'bundang',
+      '인천진산과학고': 'incheon_jinsan',
+      '인천과학고': 'incheon',
+      '입학전형': 'admission',
+      '입학요강': 'admission',
+      '자소서': 'jaseoseo',
+      '기출문항': 'exam',
+      '기출문제': 'exam'
+    };
+    
+    let safeKey = fileName.replace('.pdf', '');
+    for (let key in korToEng) {
+      safeKey = safeKey.replace(new RegExp(key, 'g'), korToEng[key]);
+    }
+    safeKey = safeKey.replace(/\s+/g, '_');
+    
+    // 영문 치환 후에도 한글이 남아있다면 기존 ENC_ 암호화 방식으로 폴백
+    if (/[가-힣]/.test(safeKey)) {
+      const b64 = btoa(unescape(encodeURIComponent(fileName)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+      safeKey = 'ENC_' + b64 + '_' + Date.now() + '.pdf';
+    } else {
+      safeKey = safeKey + '_' + Date.now() + '.pdf';
+    }
+    
+    const { data, error } = await window.supabaseClient.storage.from(bucketName).upload(safeKey, blob, {
+      contentType: 'application/pdf',
+      upsert: false
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+async function resetAIQuestions(payload) {
+  try {
+    const { studentId, type } = payload;
+    const { data: existingPract } = await window.supabaseClient.from('interview_practice').select('*').eq('student_link', studentId).maybeSingle();
+    
+    if (existingPract && existingPract.id) {
+      let updateObj = {};
+      if (type === '자소서') {
+        updateObj.statement_questions_json = '';
+      } else {
+        updateObj.record_questions_json = '';
+      }
+      
+      // 프론트엔드에서 특정 모드의 답변만 제거하여 보낸 새 answers_json 반영
+      if (payload.updatedAnswersText !== undefined) {
+        updateObj.answers_json = payload.updatedAnswersText;
+      }
+
+      const res = await window.supabaseClient.from('interview_practice').update(updateObj).eq('id', existingPract.id);
+      if (res.error) throw new Error('초기화 DB 갱신 실패: ' + res.error.message);
+    }
+    
+    // students 상태 컬럼도 초기화
+    let studentUpdateObj = {};
+    if (type === '자소서') {
+      studentUpdateObj.expected_questions_ai_ps = '';
+    } else {
+      studentUpdateObj.expected_questions_ai_record = '';
+    }
+    await window.supabaseClient.from('students').update(studentUpdateObj).eq('student_link', studentId);
+    
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+// --- 전역(window) 객체 명시적 바인딩 ---
+
+window.verifyPassword = verifyPassword;
+window.getSettings = getSettings;
+window.getStudentsList = getStudentsList;
+window.toggleStudentHidden = toggleStudentHidden;
+window.updatePassStatus = updatePassStatus;
+window.getPersonalStatementHistory = getPersonalStatementHistory;
+window.savePersonalStatement = savePersonalStatement;
+window.submitPersonalStatement = submitPersonalStatement;
+window.unlockPersonalStatement = unlockPersonalStatement;
+window.getScoreDetailsBasis = getScoreDetailsBasis;
+window.getAIQuestions = getAIQuestions;
+window.resetAIQuestions = resetAIQuestions;
+window.saveStudentAnswers = saveStudentAnswers;
+window.registerStudent = registerStudent;
+window.updateStudent = updateStudent;
+window.archiveStudent = archiveStudent;
+window.hardDeleteStudent = hardDeleteStudent;
+window.saveSettings = saveSettings;
+// AI functions export
+window.generateAIFeedback = generateAIFeedback;
+window.generateAIQuestions = generateAIQuestions;
+window.evaluateStudentRecord = evaluateStudentRecord;
+window.parseStudentRecord = parseStudentRecord;
+window.uploadStudentRecordPdf = uploadStudentRecordPdf;
+window.extractTextFromPdf = extractTextFromPdf;
+
+window.getFilesInFolder = getFilesInFolder;
+window.uploadGeneralPdf = uploadGeneralPdf;
+window.deleteGeneralPdf = deleteGeneralPdf;
+window.saveStudentMemo = saveStudentMemo;
+window.getAIChecklist = getAIChecklist;
+window.generateAIChecklist = generateAIChecklist;
+
+async function deleteGeneralPdf(payload) {
+  try {
+    const fileName = payload.fileName || payload;
+    const { data, error } = await window.supabaseClient.storage.from('school_materials').remove([fileName]);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error("수파베이스 Storage 삭제 권한이 없거나 파일이 존재하지 않습니다. (Storage 정책에서 DELETE 권한이 켜져 있는지 확인하세요.)");
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+// --- 자소서 전체 진행률 일괄 집계 (N+1 쿼리 방지) ---
+async function getAllPsProgress() {
+  try {
+    let allStatements = [];
+    let from = 0;
+    const pageSize = 1000;
+    
+    // 수파베이스 기본 1000건 제한(Pagination) 돌파 로직
+    while (true) {
+      const { data: statements, error } = await window.supabaseClient
+        .from('personal_statements')
+        .select('student_link, question_no, content, updated_at, version_label') // version_label 추가
+        .order('updated_at', { ascending: true })
+        .range(from, from + pageSize - 1);
+        
+      if (error || !statements || statements.length === 0) break;
+      allStatements = allStatements.concat(statements);
+      if (statements.length < pageSize) break;
+      from += pageSize;
+    }
+
+    const progressMap = {};
+    allStatements.forEach(row => {
+      if (!progressMap[row.student_link]) progressMap[row.student_link] = {};
+      
+      const vLabel = (row.version_label || '').trim();
+      if (!progressMap[row.student_link][vLabel]) progressMap[row.student_link][vLabel] = {};
+      
+      // Null 방어: 실제 텍스트가 있을 때만 덮어쓰기
+      if (row.content !== null && row.content !== undefined) {
+        // 타입 충돌 방지를 위해 강제 String 캐스팅 후 태그 제거
+        const cleanText = String(row.content).replace(/\[상세분할\]/g, '');
+        const noSpaceText = cleanText.replace(/\s+/g, '');
+        
+        // 3단 구조로 덮어쓰기 (student_link -> version_label -> question_no)
+        progressMap[row.student_link][vLabel][row.question_no] = {
+          withSpace: cleanText.length,
+          noSpace: noSpaceText.length
+        };
+      }
+    });
+    return progressMap;
+  } catch (err) {
+    console.error('getAllPsProgress error:', err);
+    return {}; // 에러 시 안전하게 빈 객체 반환
+  }
+}
+window.getAllPsProgress = getAllPsProgress;
