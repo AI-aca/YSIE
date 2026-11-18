@@ -177,41 +177,59 @@
       
       <!-- 설정 패널 (기본 숨김) -->
       <div id="settings-panel" style="display: none;">
-        <h3><i class="fa-solid fa-sliders"></i> 시스템 환경 설정</h3>
 
-        <!-- [2026-11-18] 설정 화면 탭 개편: 기존 입력칸·버튼 ID는 모두 그대로 유지 (기능 로직 변경 없음) -->
+        <!-- [2026-11-18] 설정 화면 탭 개편 v2: 기존 입력칸·버튼 ID는 모두 그대로 유지 (저장 로직 변경 없음, 상단 저장 버튼은 기존 버튼을 대신 눌러 줌) -->
         <style>
-          #settings-panel .stab-nav { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); margin-bottom: 18px; }
-          #settings-panel .stab-btn { background: transparent; border: 1px solid transparent; border-bottom: none; color: var(--text-muted); padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 8px 8px 0 0; cursor: pointer; }
+          #settings-panel .shead { position: sticky; top: -24px; z-index: 20; background: #0f172a; margin: -24px -24px 18px -24px; padding: 18px 24px 0 24px; border-radius: 14px 14px 0 0; border-bottom: 1px solid var(--border-color); }
+          #settings-panel .shead-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+          #settings-panel .shead-top h3 { margin: 0; flex: 1; }
+          #settings-panel .shead .sdirty { font-size: 14px; font-weight: 600; color: var(--color-warning); }
+          #settings-panel .stab-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+          #settings-panel .stab-btn { background: transparent; border: 1px solid transparent; border-bottom: none; color: var(--text-muted); padding: 10px 16px; font-size: 15px; font-weight: 600; border-radius: 8px 8px 0 0; cursor: pointer; }
           #settings-panel .stab-btn:hover { color: var(--text-main); }
           #settings-panel .stab-btn.active { color: var(--text-main); background: rgba(0, 168, 134, 0.15); border-color: var(--border-color); }
           #settings-panel .stab-panel { display: none; }
           #settings-panel .stab-panel.active { display: block; }
-          #settings-panel .scard { border: 1px solid var(--border-color); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; background: rgba(15, 23, 42, 0.35); }
-          #settings-panel .scard h4 { margin: 0 0 4px 0; font-size: 15px; }
-          #settings-panel .sdesc { font-size: 13px; color: var(--text-muted); margin: 0 0 12px 0; line-height: 1.5; }
+          #settings-panel .scard { border: 1px solid var(--border-color); border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; background: rgba(15, 23, 42, 0.35); }
+          #settings-panel .scard-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+          #settings-panel .scard h4 { margin: 0 0 4px 0; font-size: 16px; }
+          #settings-panel .sdesc { font-size: 15px; color: #cbd5e1; margin: 0 0 10px 0; line-height: 1.5; }
+          #settings-panel .scard-head .sdesc { margin-bottom: 0; }
           #settings-panel .srow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-          #settings-panel .srow label { width: 130px; flex-shrink: 0; font-size: 13px; color: var(--text-muted); margin: 0; }
-          #settings-panel .stoolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-          #settings-panel .ssavebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 12px 16px; margin-top: 6px; background: rgba(11, 17, 32, 0.95); border: 1px solid var(--border-active); border-radius: 10px; }
-          #settings-panel .ssavebar .snote { flex: 1; font-size: 12px; color: var(--text-muted); }
-          #settings-panel .ssavebar .sdirty { font-size: 13px; font-weight: 600; color: var(--color-warning); }
-          #settings-panel .ssave-btn { padding: 10px 22px; font-size: 15px; font-weight: 700; }
+          #settings-panel .srow:last-child { margin-bottom: 0; }
+          #settings-panel .srow label { width: 150px; flex-shrink: 0; font-size: 15px; color: #cbd5e1; margin: 0; }
+          #settings-panel .sms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+          #settings-panel .sms-sub { font-size: 14px; color: #cbd5e1; margin-bottom: 6px; font-weight: 600; }
+          #settings-panel .sms-preview { white-space: pre-wrap; word-break: break-all; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; font-size: 14px; line-height: 1.6; color: var(--text-main); }
+          #settings-panel .sms-preview mark { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; border-radius: 3px; padding: 0 2px; }
+          @media (max-width: 900px) { #settings-panel .sms-grid { grid-template-columns: 1fr; } }
+          /* 버튼·입력칸 크기 통일 (설정 화면 안에서만 적용) */
+          #settings-panel button.btn-action { height: 38px !important; min-width: 38px; padding: 0 14px !important; font-size: 14px !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; border-radius: 8px; box-sizing: border-box; }
+          #settings-panel input[type="text"].form-control, #settings-panel input[type="number"].form-control, #settings-panel input[type="password"].form-control { height: 38px !important; padding-top: 0 !important; padding-bottom: 0 !important; box-sizing: border-box; }
+          #settings-panel #settings-school-list textarea.q-content, #settings-panel #settings-assignment-list textarea { min-height: 38px !important; }
+          #settings-panel #settings-save-current { height: 40px !important; padding: 0 20px !important; font-size: 15px !important; font-weight: 700; }
         </style>
 
-        <div class="stab-nav" role="tablist">
-          <button type="button" class="stab-btn active" data-stab="basic"><i class="fa-solid fa-gear"></i> 기본 설정</button>
-          <button type="button" class="stab-btn" data-stab="school"><i class="fa-solid fa-school"></i> 자소서 문항</button>
-          <button type="button" class="stab-btn" data-stab="assign"><i class="fa-solid fa-tasks"></i> 공통과제</button>
-          <button type="button" class="stab-btn" data-stab="sms"><i class="fa-solid fa-comment-sms"></i> 문자·AI</button>
-          <button type="button" class="stab-btn" data-stab="backup"><i class="fa-solid fa-database"></i> 백업</button>
+        <div class="shead">
+          <div class="shead-top">
+            <h3><i class="fa-solid fa-sliders"></i> 시스템 환경 설정</h3>
+            <span class="sdirty"></span>
+            <button type="button" class="btn-action" id="settings-save-current"><i class="fa-solid fa-floppy-disk"></i> <span class="slabel">기본 설정 저장</span></button>
+          </div>
+          <div class="stab-nav" role="tablist">
+            <button type="button" class="stab-btn active" data-stab="basic"><i class="fa-solid fa-gear"></i> 기본 설정</button>
+            <button type="button" class="stab-btn" data-stab="school"><i class="fa-solid fa-school"></i> 자소서 문항</button>
+            <button type="button" class="stab-btn" data-stab="assign"><i class="fa-solid fa-tasks"></i> 공통과제</button>
+            <button type="button" class="stab-btn" data-stab="sms"><i class="fa-solid fa-comment-sms"></i> 문자·AI</button>
+            <button type="button" class="stab-btn" data-stab="backup"><i class="fa-solid fa-database"></i> 백업</button>
+          </div>
         </div>
 
         <!-- 탭 1: 기본 설정 (비밀번호, 센터명) -->
         <section class="stab-panel active" data-stab-panel="basic">
           <div class="scard">
             <h4>비밀번호</h4>
-            <p class="sdesc">로그인 화면에서 쓰는 비밀번호입니다. 교사는 학생 관리·첨삭, 관리자는 설정까지 사용할 수 있습니다.</p>
+            <p class="sdesc">교사: 학생 관리·첨삭 / 관리자: 설정까지 사용</p>
             <div class="srow">
               <label for="settings-pw-teacher">교사(일반) 비밀번호</label>
               <input type="password" id="settings-pw-teacher" class="form-control" placeholder="교사 비밀번호 입력">
@@ -223,52 +241,50 @@
           </div>
           <div class="scard">
             <h4>센터명</h4>
-            <p class="sdesc">학생 등록창의 '센터명' 목록과 문자 안내에 쓰입니다. 여러 개면 콤마(,)로 구분해 입력하세요.</p>
+            <p class="sdesc">학생 등록창의 센터 목록입니다. 여러 개는 콤마(,)로 구분</p>
             <textarea id="settings-centers-list" class="form-control" placeholder="예: 대치본원, 서초본원, 송파본원" style="height: 44px; resize: vertical;"></textarea>
           </div>
-          <div class="ssavebar">
-            <span class="snote">이 저장 버튼은 기본 설정·자소서 문항·문자·AI 설정을 함께 저장합니다. (공통과제 제외)</span>
-            <span class="sdirty"></span>
-            <button class="btn-action ssave-btn" id="btn-save-settings-pw"><i class="fa-solid fa-floppy-disk"></i> 설정 저장</button>
-            <button class="btn-action" id="btn-save-settings-centers" style="display: none;">센터명 저장</button>
+          <div style="display: none;">
+            <button class="btn-action" id="btn-save-settings-pw">설정 저장</button>
+            <button class="btn-action" id="btn-save-settings-centers">센터명 저장</button>
           </div>
         </section>
 
         <!-- 탭 2: 학교별 자소서 문항 -->
         <section class="stab-panel" data-stab-panel="school">
           <div class="scard">
-            <h4>학교별 자소서 문항 및 글자수</h4>
-            <p class="sdesc">학생의 '지원 예정 학교'에 맞춰 자소서 창에 나오는 문항입니다. 학교명·학년도·문항·글자 제한을 설정합니다.</p>
-            <div class="stoolbar">
-              <button class="btn-action" id="btn-add-school" style="padding: 6px 12px; font-size: 14px; background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학교 추가하기</button>
+            <div class="scard-head">
+              <div>
+                <h4>학교별 자소서 문항 및 글자수</h4>
+                <p class="sdesc">학생의 지원 학교에 맞춰 자소서 창에 나오는 문항입니다.</p>
+              </div>
+              <button class="btn-action" id="btn-add-school" style="background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학교 추가하기</button>
             </div>
           </div>
           <div id="settings-school-list" style="display: block; margin-top: 10px;">
             <!-- script.js에서 동적 주입 -->
           </div>
-          <div class="ssavebar">
-            <span class="snote">이 저장 버튼은 기본 설정·자소서 문항·문자·AI 설정을 함께 저장합니다. (공통과제 제외)</span>
-            <span class="sdirty"></span>
-            <button class="btn-action ssave-btn" id="btn-save-settings-school"><i class="fa-solid fa-floppy-disk"></i> 자소서 문항 저장</button>
+          <div style="display: none;">
+            <button class="btn-action" id="btn-save-settings-school">자소서 문항 저장</button>
           </div>
         </section>
 
         <!-- 탭 3: 학년도별 공통과제 -->
         <section class="stab-panel" data-stab-panel="assign">
           <div class="scard">
-            <h4>학년도별 공통과제</h4>
-            <p class="sdesc">학생의 학년도와 '적용 학년도'가 같은 과제만 학생 화면에 나옵니다. 해당 학년도 과제가 없으면 목록에 '미생성'으로 표시됩니다.</p>
-            <div class="stoolbar">
-              <button class="btn-action" id="btn-add-assignment" style="padding: 6px 12px; font-size: 14px; background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학년도 과제 추가</button>
+            <div class="scard-head">
+              <div>
+                <h4>학년도별 공통과제</h4>
+                <p class="sdesc">학생 학년도와 같은 학년도 과제만 학생에게 보입니다. 없으면 '미생성' 표시</p>
+              </div>
+              <button class="btn-action" id="btn-add-assignment" style="background-color: #8b5cf6;"><i class="fa-solid fa-plus"></i> 새로운 학년도 과제 추가</button>
             </div>
           </div>
           <div id="settings-assignment-list" style="display: block; margin-top: 10px; display:flex; flex-direction:column; gap:10px;">
             <!-- script.js에서 동적 주입 -->
           </div>
-          <div class="ssavebar">
-            <span class="snote">공통과제는 이 탭의 [공통과제 저장] 버튼으로만 저장됩니다.</span>
-            <span class="sdirty"></span>
-            <button class="btn-action ssave-btn" id="btn-save-settings-assignments"><i class="fa-solid fa-floppy-disk"></i> 공통과제 저장</button>
+          <div style="display: none;">
+            <button class="btn-action" id="btn-save-settings-assignments">공통과제 저장</button>
           </div>
         </section>
 
@@ -276,28 +292,39 @@
         <section class="stab-panel" data-stab-panel="sms">
           <div class="scard">
             <h4>문자 추가 안내</h4>
-            <p class="sdesc">학생 목록의 [문자] 버튼으로 복사되는 안내문에 한 줄(또는 여러 줄) 추가됩니다. 비워두면 문자에 나가지 않습니다.</p>
-            <textarea id="settings-sms-notice" class="form-control" placeholder="예: * 자소서는 11월 21일(토) 자소서 이론 수업을 들은 후, 아래 링크에 접속하여 작성해 주세요." style="height: 70px; resize: vertical;"></textarea>
+            <p class="sdesc">여기 입력한 문구가 오른쪽 문자 안의 초록색 위치에 들어갑니다. 비워두면 안 들어갑니다.</p>
+            <div class="sms-grid">
+              <div>
+                <div class="sms-sub">추가 문구 입력</div>
+                <textarea id="settings-sms-notice" class="form-control" placeholder="예: * 자소서는 11월 21일(토) 자소서 이론 수업을 들은 후, 아래 링크에 접속하여 작성해 주세요." style="height: 120px; resize: vertical;"></textarea>
+              </div>
+              <div>
+                <div class="sms-sub">실제 나가는 문자 미리보기 (학생 이름·링크는 예시)</div>
+                <div class="sms-preview" id="settings-sms-preview"></div>
+              </div>
+            </div>
           </div>
           <div class="scard">
             <h4>Gemini API 키 (AI 첨삭·평가)</h4>
-            <p class="sdesc">AI 도움받기, AI 체크리스트, 생기부 채점, 예상질문 생성에 쓰이는 키입니다.</p>
+            <p class="sdesc">AI 도움받기·체크리스트·생기부 채점·예상질문 생성에 사용</p>
             <input type="password" id="settings-gemini-key" class="form-control" placeholder="Gemini API Key 입력">
           </div>
-          <div class="ssavebar">
-            <span class="snote">이 저장 버튼은 기본 설정·자소서 문항·문자·AI 설정을 함께 저장합니다. (공통과제 제외)</span>
-            <span class="sdirty"></span>
-            <button class="btn-action ssave-btn" id="btn-save-settings-sms"><i class="fa-solid fa-floppy-disk"></i> 설정 저장</button>
-            <button class="btn-action" id="btn-save-settings-api" style="display: none;">API키 저장</button>
+          <div style="display: none;">
+            <button class="btn-action" id="btn-save-settings-sms">설정 저장</button>
+            <button class="btn-action" id="btn-save-settings-api">API키 저장</button>
           </div>
         </section>
 
         <!-- 탭 5: 백업 -->
         <section class="stab-panel" data-stab-panel="backup">
           <div class="scard">
-            <h4><i class="fa-solid fa-database"></i> 데이터베이스 백업</h4>
-            <p class="sdesc">전체 테이블을 CSV 파일로 내려받습니다. 관리자 비밀번호 확인 후 백업창이 열립니다.</p>
-            <button class="btn-action" style="padding: 8px 16px; font-size: 14px; background-color: var(--color-danger);" onclick="verifyBackupPassword()">전체 테이블 CSV 백업창 열기</button>
+            <div class="scard-head">
+              <div>
+                <h4><i class="fa-solid fa-database"></i> 데이터베이스 백업</h4>
+                <p class="sdesc">전체 데이터를 CSV로 내려받습니다. (관리자 비밀번호 확인)</p>
+              </div>
+              <button class="btn-action" style="background-color: var(--color-danger);" onclick="verifyBackupPassword()">전체 테이블 CSV 백업창 열기</button>
+            </div>
           </div>
         </section>
 
@@ -305,31 +332,114 @@
           (function () {
             var panel = document.getElementById('settings-panel');
             if (!panel) return;
-            function resizeAutoTextareas(scope) {
-              setTimeout(function () {
-                scope.querySelectorAll('#settings-assignment-list textarea, #settings-school-list textarea.q-content').forEach(function (ta) {
-                  if (ta.offsetParent !== null) {
-                    ta.style.height = 'auto';
-                    ta.style.height = ta.scrollHeight + 'px';
-                  }
-                });
-              }, 30);
+            var SAVE_MAP = {
+              basic: { label: '기본 설정 저장', target: 'btn-save-settings-pw' },
+              school: { label: '자소서 문항 저장', target: 'btn-save-settings-school' },
+              assign: { label: '공통과제 저장', target: 'btn-save-settings-assignments' },
+              sms: { label: '문자·AI 저장', target: 'btn-save-settings-sms' }
+            };
+            var currentTab = 'basic';
+            var saveBtn = document.getElementById('settings-save-current');
+
+            // 문항·과제 입력칸 높이: 한 줄이면 모두 같은 높이, 내용이 길면 그만큼만 늘어남
+            function fitTextareas() {
+              panel.querySelectorAll('#settings-assignment-list textarea, #settings-school-list textarea.q-content').forEach(function (ta) {
+                if (ta.getAttribute('rows') !== '1') ta.setAttribute('rows', '1');
+                if (ta.offsetParent !== null) {
+                  ta.style.height = 'auto';
+                  ta.style.height = (ta.scrollHeight + 2) + 'px';
+                }
+              });
             }
-            function showTab(key) {
+            var fitTimer = null;
+            function fitSoon() {
+              clearTimeout(fitTimer);
+              fitTimer = setTimeout(fitTextareas, 80);
+            }
+            ['settings-school-list', 'settings-assignment-list'].forEach(function (id) {
+              var el = document.getElementById(id);
+              if (el && window.MutationObserver) new MutationObserver(fitSoon).observe(el, { childList: true, subtree: true });
+            });
+            panel.addEventListener('input', function (e) {
+              if (e.target && e.target.tagName === 'TEXTAREA' && e.target.getAttribute('rows') === '1') {
+                e.target.style.height = 'auto';
+                e.target.style.height = (e.target.scrollHeight + 2) + 'px';
+              }
+            });
+            window.addEventListener('resize', fitSoon);
+
+            // 문자 미리보기: 실제 [문자] 버튼과 같은 함수(copySmsTemplate)로 문구를 만들어 보여줌 (복사는 하지 않음)
+            var smsInput = document.getElementById('settings-sms-notice');
+            var smsPreview = document.getElementById('settings-sms-preview');
+            function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+            function buildSmsText(notice) {
+              if (typeof copySmsTemplate !== 'function' || !navigator.clipboard) return null;
+              var captured = null;
+              var clip = navigator.clipboard;
+              var hadOwn = Object.prototype.hasOwnProperty.call(clip, 'writeText');
+              var oldOwn = clip.writeText;
+              var oldNotice = window.SMS_NOTICE;
+              try {
+                clip.writeText = function (t) { captured = t; return new Promise(function () {}); };
+                window.SMS_NOTICE = notice;
+                copySmsTemplate('', '홍길동', '예시링크');
+              } catch (e) {
+                captured = null;
+              } finally {
+                if (hadOwn) clip.writeText = oldOwn; else delete clip.writeText;
+                window.SMS_NOTICE = oldNotice;
+              }
+              return captured;
+            }
+            function updateSmsPreview() {
+              if (!smsInput || !smsPreview) return;
+              var notice = String(smsInput.value || '').replace(/\r\n/g, '\n').trim();
+              var text = buildSmsText(smsInput.value || '');
+              if (text === null) { smsPreview.textContent = '(미리보기를 불러오지 못했습니다)'; return; }
+              var idx = notice ? text.indexOf(notice) : -1;
+              if (idx >= 0) {
+                smsPreview.innerHTML = esc(text.slice(0, idx)) + '<mark>' + esc(notice) + '</mark>' + esc(text.slice(idx + notice.length));
+              } else {
+                smsPreview.textContent = text;
+              }
+            }
+            if (smsInput) smsInput.addEventListener('input', updateSmsPreview);
+            var lastSmsVal = null;
+
+            function showTab(key, skipConfirm) {
+              if (!skipConfirm && key !== currentTab && window.isSettingsDirty) {
+                if (!confirm('저장하지 않은 변경이 있습니다.\n오른쪽 위 저장 버튼으로 먼저 저장하는 것을 권장합니다.\n\n저장하지 않고 다른 탭으로 이동할까요?')) return;
+              }
+              currentTab = key;
               panel.querySelectorAll('.stab-btn').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-stab') === key); });
               panel.querySelectorAll('.stab-panel').forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-stab-panel') === key); });
+              var m = SAVE_MAP[key];
+              if (saveBtn) {
+                saveBtn.style.display = m ? '' : 'none';
+                if (m) saveBtn.querySelector('.slabel').textContent = m.label;
+              }
               try { sessionStorage.setItem('settings_tab', key); } catch (e) {}
-              resizeAutoTextareas(panel);
+              fitSoon();
+              if (key === 'sms') updateSmsPreview();
+            }
+            if (saveBtn) {
+              saveBtn.addEventListener('click', function () {
+                var m = SAVE_MAP[currentTab];
+                var target = m && document.getElementById(m.target);
+                if (target) target.click();
+              });
             }
             panel.querySelectorAll('.stab-btn').forEach(function (b) {
               b.addEventListener('click', function () { showTab(b.getAttribute('data-stab')); });
             });
             var saved = null;
             try { saved = sessionStorage.getItem('settings_tab'); } catch (e) {}
-            if (saved && panel.querySelector('.stab-btn[data-stab="' + saved + '"]')) showTab(saved);
+            showTab((saved && panel.querySelector('.stab-btn[data-stab="' + saved + '"]')) ? saved : 'basic', true);
             setInterval(function () {
               var msg = window.isSettingsDirty ? '● 저장되지 않은 변경이 있습니다' : '';
               panel.querySelectorAll('.sdirty').forEach(function (el) { if (el.textContent !== msg) el.textContent = msg; });
+              // 설정을 불러온 뒤(값이 코드로 채워진 경우)에도 미리보기 갱신
+              if (smsInput && smsInput.value !== lastSmsVal) { lastSmsVal = smsInput.value; if (currentTab === 'sms') updateSmsPreview(); }
             }, 500);
           })();
         </script>
