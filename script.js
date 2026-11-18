@@ -584,11 +584,14 @@ let currentSortDir = 'asc'; // 'asc' or 'desc'
  */
 function copySmsTemplate(center, name, link) {
   const url = window.location.origin + window.location.pathname + '?student=' + link;
+  // [2026-11-18] 설정 > 문자 추가 안내 문구 (비어 있으면 미표시)
+  const smsNotice = String(window.SMS_NOTICE || '').replace(/\r\n/g, '\n').trim();
+  const smsNoticeBlock = smsNotice ? smsNotice + '\n' : '';
   const text = `[연세국제영어]
 
 외고·국제고 합격을 위한 개별 관리 링크를 보내드립니다.
 이 링크를 통해 자소서 작성 및 예상질문 답변을 작성해 주세요.
-* 모바일이 아닌 PC나 노트북 환경의 크롬 브라우저를 권장 드립니다.
+${smsNoticeBlock}* 모바일이 아닌 PC나 노트북 환경의 크롬 브라우저를 권장 드립니다.
 
 ${name} 학생의 링크
 
@@ -3205,7 +3208,8 @@ function bindEventHandlers() {
         '교사': document.getElementById('settings-pw-teacher').value,
         '관리자': document.getElementById('settings-pw-admin').value,
         'GeminiKey': document.getElementById('settings-gemini-key').value,
-        'centers': document.getElementById('settings-centers-list').value
+        'centers': document.getElementById('settings-centers-list').value,
+        'sms_notice': document.getElementById('settings-sms-notice') ? document.getElementById('settings-sms-notice').value : (window.SMS_NOTICE || '')
       };
       
       
@@ -3258,6 +3262,7 @@ function bindEventHandlers() {
           alert('시스템 설정이 성공적으로 저장되었습니다.');
           window.isSettingsDirty = false;
           ACTIVE_ADMIN_PASSWORD = basic['관리자'];
+          window.SMS_NOTICE = basic['sms_notice'] || '';
           sessionStorage.setItem('user_pw', ACTIVE_ADMIN_PASSWORD);
           
           window.SCHOOL_QUESTIONS_MAP = schools;
@@ -3282,6 +3287,8 @@ function bindEventHandlers() {
   if (btnSchool) btnSchool.onclick = executeSaveSettings;
   if (btnDrive) btnDrive.onclick = executeSaveSettings;
   if (btnCenters) btnCenters.onclick = executeSaveSettings;
+  const btnSms = document.getElementById('btn-save-settings-sms');
+  if (btnSms) btnSms.onclick = executeSaveSettings;
   
   // 최종 제출하기 (Lock) 버튼 연동
   document.getElementById('btn-submit-ps-final').onclick = async () => {
@@ -3388,6 +3395,8 @@ async function loadSettingsForm() {
     
     
     document.getElementById('settings-centers-list').value = basic.centers || '';
+    window.SMS_NOTICE = basic.sms_notice || '';
+    if (document.getElementById('settings-sms-notice')) document.getElementById('settings-sms-notice').value = window.SMS_NOTICE;
     let centersArray = (basic.centers || '').split(',').map(s => s.trim()).filter(s => s);
     if (centersArray.length === 0) centersArray = ['대치본원', '서초본원'];
     SETTINGS_CENTERS = centersArray;
