@@ -208,6 +208,7 @@
           #settings-panel input[type="text"].form-control, #settings-panel input[type="number"].form-control, #settings-panel input[type="password"].form-control { height: 38px !important; padding-top: 0 !important; padding-bottom: 0 !important; box-sizing: border-box; }
           #settings-panel #settings-school-list textarea.q-content, #settings-panel #settings-assignment-list textarea { min-height: 38px !important; }
           #settings-panel #settings-save-current { height: 40px !important; padding: 0 20px !important; font-size: 15px !important; font-weight: 700; }
+          #settings-panel #settings-save-current.shide { display: none !important; }
         </style>
 
         <div class="shead">
@@ -415,7 +416,7 @@
               panel.querySelectorAll('.stab-panel').forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-stab-panel') === key); });
               var m = SAVE_MAP[key];
               if (saveBtn) {
-                saveBtn.style.display = m ? '' : 'none';
+                saveBtn.classList.toggle('shide', !m);
                 if (m) saveBtn.querySelector('.slabel').textContent = m.label;
               }
               try { sessionStorage.setItem('settings_tab', key); } catch (e) {}
