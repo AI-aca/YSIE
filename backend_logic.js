@@ -1407,13 +1407,8 @@ async function savePersonalStatement(payload) {
     const now = new Date().toISOString();
     
     const { data: student } = await window.supabaseClient.from('students').select('cover_letter_status, target_school').eq('student_link', studentId).single();
-    if (student) {
-      if (isAllEmpty && student.cover_letter_status !== '작성전') {
-        await window.supabaseClient.from('students').update({ cover_letter_status: '작성전' }).eq('student_link', studentId);
-      } else if (!isAllEmpty && student.cover_letter_status === '작성전') {
-        await window.supabaseClient.from('students').update({ cover_letter_status: '작성중' }).eq('student_link', studentId);
-      }
-    }
+    // [2026-11-22] 상태(작성전/작성중)는 아래 3번에서 저장이 끝난 뒤 서버가 DB의 실제 글 + 현재 지원학교로 다시 계산
+    // (기존: 학생 브라우저가 보낸 isAllEmpty로 결정 → 학교 지정 전에 열어 둔 화면에서 저장하면 글이 있어도 '작성전'으로 남던 문제)
 
     // 변경된 항목을 자소서와 피드백으로 분리
     const newSnapshots = {};
@@ -1465,6 +1460,27 @@ async function savePersonalStatement(payload) {
       };
       const { error: updErr } = await window.supabaseClient.from('teacher_feedbacks').upsert(fbPayload, { onConflict: 'student_link,question_no,version_label' });
       if (updErr) throw updErr;
+    }
+
+    // 3. [2026-11-22] 상태 재계산: 현재 지원학교 문항에 글이 있으면 '작성중', 없으면 '작성전'
+    //    최종제출 상태는 글이 있으면 그대로 유지, 모든 칸이 비면 '작성전' (기존 동작과 동일)
+    //    재계산 중 오류가 나도 자소서 저장은 이미 완료된 상태이므로 저장 실패로 처리하지 않음
+    if (student) {
+      try {
+        const calcStatus = await calcPsStatusForSchool(studentId, student.target_school);
+        const curStatus = student.cover_letter_status || '';
+        let nextStatus = null;
+        if (curStatus === '최종제출') {
+          if (calcStatus === '작성전') nextStatus = '작성전';
+        } else if (calcStatus !== curStatus) {
+          nextStatus = calcStatus;
+        }
+        if (nextStatus) {
+          await window.supabaseClient.from('students').update({ cover_letter_status: nextStatus }).eq('student_link', studentId);
+        }
+      } catch (stErr) {
+        console.warn('자소서 상태 재계산 실패 (자소서 저장은 완료됨):', stErr);
+      }
     }
     
     return { success: true };
