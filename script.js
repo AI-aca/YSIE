@@ -1484,8 +1484,10 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
         opt.value = compositeKey;
         opt.style.backgroundColor = '#1e293b';
         opt.style.color = '#f8fafc';
-        let displayQNum = String(curr.qNum).startsWith('문항') ? String(curr.qNum) : `문항 ${curr.qNum}`;
-        opt.textContent = `(구) [${curr.version_label}] ${displayQNum}`;
+        // [2026-11-22] '통합문항'처럼 '문항'이 들어간 이름은 앞에 '문항'을 다시 붙이지 않음, '지원학교 미정'은 화면에만 '미정'으로 표시 (DB 값·선택값은 그대로)
+        let displayQNum = String(curr.qNum).includes('문항') ? String(curr.qNum) : `문항 ${curr.qNum}`;
+        const displayLabel = String(curr.version_label || '').trim() === (window.UNASSIGNED_SCHOOL_LABEL || '지원학교 미정') ? '미정' : curr.version_label;
+        opt.textContent = `(구) [${displayLabel}] ${displayQNum}`;
         opt.dataset.qtext = curr.question || '';
         psSelector.appendChild(opt);
       }
@@ -2384,7 +2386,7 @@ async function runAIFeedbackAction() {
   if (blockIfTargetSchoolMissing(STUDENTS_LIST.find(s => String(s.studentLink) === String(ACTIVE_PS_STUDENT)), 'AI 도움받기')) return;
   
   const qNum = document.getElementById('ps-question-selector').value;
-  const displayQNum = String(qNum).startsWith('문항') ? String(qNum) : '문항' + qNum;
+  const displayQNum = String(qNum).includes('문항') ? String(qNum) : '문항' + qNum;
   if (!confirm(`현재 문항(${displayQNum}번)에 대한 AI 도움받기를 생성하시겠습니까?`)) return;
   const statementText = window.getCurrentPsText ? window.getCurrentPsText(true) : document.getElementById('ps-content-textarea').value;
   const rawVal = window.getCurrentPsText ? window.getCurrentPsText(false).replace(/\[상세분할\]/g, '').trim() : statementText.trim();
