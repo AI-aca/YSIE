@@ -3302,9 +3302,9 @@ function bindEventHandlers() {
         if (res.success) {
           alert('시스템 설정이 성공적으로 저장되었습니다.');
           window.isSettingsDirty = false;
-          ACTIVE_ADMIN_PASSWORD = basic['관리자'];
+          if (basic['관리자']) ACTIVE_ADMIN_PASSWORD = basic['관리자']; // [2026-11-23] 빈칸이면 관리자 비밀번호 변경 없음
           window.SMS_NOTICE = basic['sms_notice'] || '';
-          sessionStorage.setItem('user_pw', ACTIVE_ADMIN_PASSWORD);
+          if (basic['관리자']) sessionStorage.setItem('user_pw', ACTIVE_ADMIN_PASSWORD);
           
           window.SCHOOL_QUESTIONS_MAP = schools;
           window.targetSchoolsList = Array.from(new Set(schools.map(s => s.name)));
@@ -4898,11 +4898,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.verifyBackupPassword = function() {
   const pw = prompt('데이터베이스 백업을 진행하려면 관리자 비밀번호를 다시 한 번 입력하세요.');
-  if (pw === 'w2027pass!@#') {
-    document.getElementById('modal-db-backup').classList.add('open');
-  } else if (pw !== null) {
-    alert('비밀번호가 일치하지 않습니다.');
-  }
+  // [2026-11-23] 보안: 코드에 고정된 비밀번호 대신 실제 관리자 비밀번호를 서버 함수(admin_check)로 확인
+  if (pw === null) return;
+  window.supabaseClient.rpc('admin_check', { p_pw: pw }).then(({ data, error }) => {
+    if (!error && data === true) {
+      document.getElementById('modal-db-backup').classList.add('open');
+    } else {
+      alert('비밀번호가 일치하지 않습니다.');
+    }
+  });
 };
 
 window.downloadTableCSV = async function(tableName) {

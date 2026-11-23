@@ -236,11 +236,11 @@
             <p class="sdesc">교사: 학생 관리·첨삭 / 관리자: 설정까지 사용</p>
             <div class="srow">
               <label for="settings-pw-teacher">교사(일반) 비밀번호</label>
-              <input type="password" id="settings-pw-teacher" class="form-control" placeholder="교사 비밀번호 입력">
+              <input type="password" id="settings-pw-teacher" class="form-control" placeholder="바꿀 때만 새 비밀번호 입력 (현재 비밀번호는 표시되지 않음)" autocomplete="new-password">
             </div>
             <div class="srow">
               <label for="settings-pw-admin">관리자 비밀번호</label>
-              <input type="password" id="settings-pw-admin" class="form-control" placeholder="관리자 비밀번호 입력">
+              <input type="password" id="settings-pw-admin" class="form-control" placeholder="바꿀 때만 새 비밀번호 입력 (현재 비밀번호는 표시되지 않음)" autocomplete="new-password">
             </div>
           </div>
           <div class="scard">
@@ -311,7 +311,7 @@
           <div class="scard">
             <h4>Gemini API 키 (AI 첨삭·평가)</h4>
             <p class="sdesc">AI 도움받기·체크리스트·생기부 채점·예상질문 생성에 사용</p>
-            <input type="password" id="settings-gemini-key" class="form-control" placeholder="Gemini API Key 입력">
+            <input type="password" id="settings-gemini-key" class="form-control" placeholder="등록됨 · 바꿀 때만 새 키 입력" autocomplete="off">
           </div>
           <div style="display: none;">
             <button class="btn-action" id="btn-save-settings-sms">설정 저장</button>

@@ -28,10 +28,19 @@ if (typeof window !== 'undefined') {
 /**
  * 공통 Gemini API 호출 모듈 (3단계 폴백 적용)
  */
+// [2026-11-23] 보안: Gemini 키는 settings 테이블에서 읽지 않고, 로그인한 교사·관리자 비밀번호로 서버 함수(get_gemini_key)에서만 받음
+async function getGeminiKeyRow() {
+  let pw = '';
+  try { pw = sessionStorage.getItem('user_pw') || ''; } catch (e) {}
+  const { data, error } = await window.supabaseClient.rpc('get_gemini_key', { p_pw: pw });
+  if (error) return { data: null, error: error };
+  return { data: data ? { setting_value: data } : null, error: null };
+}
+
 async function callGeminiAPI(apiKey, systemPrompt, userPrompt, forceModels = null) {
   let key = apiKey;
   if (!key) {
-    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    const { data: settings } = await getGeminiKeyRow();
     key = settings ? settings.setting_value : '';
   }
   if (!key) throw new Error('Gemini API 키가 설정되지 않았습니다.');
@@ -424,7 +433,7 @@ async function evaluateStudentRecord(studentId, recordText) {
       throw new Error('분석할 생기부 PDF 문서 또는 파싱 텍스트가 없습니다. 먼저 생기부 PDF를 업로드해 주십시오.');
     }
 
-    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    const { data: settings } = await getGeminiKeyRow();
     const apiKey = settings ? settings.setting_value : '';
     if (!apiKey) throw new Error('Gemini API 키가 수파베이스 settings 테이블에 설정되지 않았습니다.');
     
@@ -753,7 +762,7 @@ async function extractTextFromPdf(fileUrl) {
       reader.readAsDataURL(blob);
     });
 
-    const { data: settings } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', 'GeminiKey').single();
+    const { data: settings } = await getGeminiKeyRow();
     const apiKey = settings ? settings.setting_value : '';
     if (!apiKey) throw new Error('Gemini API 키가 수파베이스 settings 테이블에 설정되지 않았습니다.');
     
@@ -1015,13 +1024,10 @@ async function verifyPassword(payload) {
   try {
     const pwd = payload.password || payload;
     
-    const { data: adminSetting } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', '관리자').single();
-    const { data: teacherSetting } = await window.supabaseClient.from('settings').select('setting_value').eq('setting_key', '교사').single();
-    
-    if (!adminSetting && !teacherSetting) return { success: false, error: 'DB에 설정된 비밀번호가 없습니다.' };
-    
-    if (adminSetting && adminSetting.setting_value === pwd) return { success: true, role: '관리자' };
-    if (teacherSetting && teacherSetting.setting_value === pwd) return { success: true, role: '교사' };
+    // [2026-11-23] 보안: 비밀번호는 브라우저로 내려받지 않고 서버 함수(login_check)에서 비교
+    const { data: role, error: loginErr } = await window.supabaseClient.rpc('login_check', { p_pw: String(pwd || '') });
+    if (loginErr) return { success: false, error: '로그인 확인 중 오류: ' + (loginErr.message || String(loginErr)) };
+    if (role === '관리자' || role === '교사') return { success: true, role: role };
     
     return { success: false, error: '비밀번호가 올바르지 않습니다.' };
   } catch (err) {
@@ -1041,7 +1047,8 @@ async function getSettings() {
         if (s.setting_key === 'schools') {
           try { schools = JSON.parse(s.setting_value); } catch(e){}
         } else {
-          basic[s.setting_key] = s.setting_value;
+          // [2026-11-23] 보안: 비밀번호·Gemini 키는 화면으로 내려보내지 않음
+          if (!['관리자', '교사', 'GeminiKey'].includes(s.setting_key)) basic[s.setting_key] = s.setting_value;
         }
       });
     }
@@ -1724,7 +1731,18 @@ async function saveSettings(payload) {
   try {
     const { settingsData } = payload;
     if (settingsData.basic) {
+      // [2026-11-23] 보안: 비밀번호·Gemini 키는 settings에 저장하지 않고 서버 함수로만 변경 (빈칸이면 변경 안 함)
+      const SECRET_KEYS = ['관리자', '교사', 'GeminiKey'];
+      const secVal = (k) => { const v = String(settingsData.basic[k] || ''); return v.trim() === '' ? '' : v; };
+      const newTeacher = secVal('교사'), newAdmin = secVal('관리자'), newGemini = secVal('GeminiKey').trim();
+      if (newTeacher || newAdmin || newGemini) {
+        let curPw = '';
+        try { curPw = sessionStorage.getItem('user_pw') || ''; } catch (e) {}
+        const { data: secOk, error: secErr } = await window.supabaseClient.rpc('admin_update_secrets', { p_admin_pw: curPw, p_teacher_pw: newTeacher, p_admin_new_pw: newAdmin, p_gemini_key: newGemini });
+        if (secErr || secOk !== true) throw new Error('비밀번호/Gemini 키 변경 실패 (현재 관리자 로그인 확인 실패). 다시 로그인한 뒤 시도해 주세요.');
+      }
       for (const key of Object.keys(settingsData.basic)) {
+        if (SECRET_KEYS.includes(key)) continue;
         await window.supabaseClient.from('settings').upsert({
           setting_key: key,
           setting_value: String(settingsData.basic[key] || '')
