@@ -3379,9 +3379,49 @@ function bindEventHandlers() {
     const msg2 = "🚨 [최종 경고] 정말로 자소서의 ⚠️'모든 문항'⚠️을 작성 및 수정이 불가능한 '최종본'으로 일괄 제출하는 것이 확실합니까?";
     if (!confirm(msg2)) return;
     
+    // [2026-11-23] 최종제출 전 자동 저장: 입력창에 쓰고 [저장]을 안 누른 글이 있으면 먼저 저장한 뒤 잠금
+    //  (기존: 상태만 '최종제출'로 바꾸고 창을 닫아, 저장 안 한 글이 사라지던 문제)
+    //  - [저장] 버튼과 같은 규칙: 원본과 달라졌고 빈칸이 아닌 문항만 저장 (자소서 행 추가, 기존 행 삭제·수정 없음)
+    //  - 바뀐 글이 없으면 저장 요청 없이 바로 제출 (기존과 동일)
+    //  - 저장에 실패하면 제출하지 않고 멈춤 (글은 화면에 그대로 남음)
+    let preSavedCount = 0;
+    {
+      const origData = window.PS_ORIGINAL_HISTORY_CURRENT || [];
+      const uiTargetSchool = document.getElementById('ps-school-name').textContent.replace('지원 학교: ', '');
+      const [tSchool, tQNum] = currentQNum.includes('|') ? currentQNum.split('|') : [uiTargetSchool, currentQNum];
+      const currActive = (hData.current || []).find(c => window.normalizeQNum(c.qNum) === window.normalizeQNum(tQNum) && (c.version_label === tSchool || (!c.version_label && tSchool === uiTargetSchool)));
+      if (currActive) currActive.text = currentTextAreaVal;
+      const preContents = [];
+      (hData.current || []).forEach(curr => {
+        const orig = origData.find(o => o.qNum === curr.qNum && o.version_label === curr.version_label);
+        const oldPs = orig ? orig.text : '';
+        const newPs = curr.text || '';
+        if (newPs !== oldPs && newPs.trim() !== '') {
+          preContents.push({ qNum: curr.qNum, text: newPs, type: '자소서', version_label: curr.version_label });
+        }
+      });
+      if (preContents.length > 0) {
+        const preRes = await ApiClient.post('savePersonalStatement', {
+          studentId: ACTIVE_PS_STUDENT,
+          contents: preContents,
+          writer: '학생',
+          isAllEmpty: false
+        });
+        if (!preRes || preRes.success === false) {
+          alert('🚨 최종 제출 전에 글을 저장하지 못해서 제출하지 않았습니다.\n작성한 글은 화면에 그대로 있습니다.\n[저장] 버튼으로 먼저 저장한 뒤 다시 제출해 주세요.\n\n사유: ' + ((preRes && preRes.error) || '알 수 없는 오류'));
+          return;
+        }
+        window.PS_ORIGINAL_HISTORY_CURRENT = JSON.parse(JSON.stringify(hData.current));
+        isPsDirty = false;
+        preSavedCount = preContents.length;
+      }
+    }
+
     try {
-      await ApiClient.post('submitPersonalStatement', { studentId: ACTIVE_PS_STUDENT });
-      alert('성공적으로 최종 제출 처리되어 자기소개서 편집창이 잠겼습니다.');
+      const subRes = await ApiClient.post('submitPersonalStatement', { studentId: ACTIVE_PS_STUDENT });
+      if (!subRes || subRes.success === false) throw new Error((subRes && subRes.error) || '알 수 없는 오류');
+      isPsDirty = false;
+      alert((preSavedCount > 0 ? '제출 전에 수정한 글(' + preSavedCount + '개 문항)을 먼저 저장했습니다.\n' : '') + '성공적으로 최종 제출 처리되어 자기소개서 편집창이 잠겼습니다.');
       document.getElementById('modal-ps-editor').classList.remove('open');
       loadStudentsData();
     } catch (err) {

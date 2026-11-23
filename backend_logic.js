@@ -1517,7 +1517,9 @@ window.deletePersonalStatementSnapshot = async function(recordId) {
 async function submitPersonalStatement(payload) {
   try {
     const studentId = payload.studentId || payload;
-    await window.supabaseClient.from('students').update({ cover_letter_status: '최종제출' }).eq('student_link', studentId);
+    // [2026-11-23] 제출(잠금) 요청이 실패하면 '성공'으로 알리지 않고 실패로 돌려줌
+    const { error: subErr } = await window.supabaseClient.from('students').update({ cover_letter_status: '최종제출' }).eq('student_link', studentId);
+    if (subErr) throw new Error(subErr.message || String(subErr));
     return { success: true };
   } catch (err) {
     return { success: false, error: err.toString() };
