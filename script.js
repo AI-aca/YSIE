@@ -65,6 +65,7 @@ window.populateAdmissionYearDropdowns = function() {
       const opt = document.createElement('option');
       opt.value = y.toString();
       opt.textContent = y.toString() + '학년도';
+      if (y === defaultYear) opt.selected = true; // [2026-11-23] 기본값: 올해+1 학년도
       filterYear.appendChild(opt);
     });
   }
@@ -606,7 +607,7 @@ ${name} 학생의 링크
 }
 
 // [2026-11-18] 대시보드 상단 총 인원·반별 인원 (0명인 반은 표시 안 함)
-// 기준: '숨김학생 감추기' 체크 상태만 반영 (검색·학년도·학급·지원학교 필터와 무관한 전체 인원)
+// 기준: '숨김학생 감추기' 체크 + [2026-11-23] 선택한 학년도 (검색·학급·지원학교 필터와는 무관)
 function renderDashboardSummary() {
   const box = document.getElementById('dashboard-class-summary');
   if (!box) return;
@@ -619,7 +620,9 @@ function renderDashboardSummary() {
   }
   const hideHiddenEl = document.getElementById('checkbox-hide-hidden');
   const hideHidden = hideHiddenEl ? hideHiddenEl.checked : true;
-  const list = STUDENTS_LIST.filter(s => !(hideHidden && s.is_hidden));
+  const yearEl = document.getElementById('filter-admission-year');
+  const yearVal = yearEl ? yearEl.value : '전체';
+  const list = STUDENTS_LIST.filter(s => !(hideHidden && s.is_hidden) && (yearVal === '전체' || s.admissionYear === yearVal));
   const counts = {};
   list.forEach(s => {
     const key = String(s.classGroup || '').trim() || '학급 미정';
@@ -729,7 +732,8 @@ function renderMainTable() {
     
     const matchSearch = s.name.toLowerCase().includes(searchVal) || s.school.toLowerCase().includes(searchVal);
     const matchSchool = (targetSchoolVal === '전체') || (s.targetSchool === targetSchoolVal);
-    const matchYear = (admissionYearVal === '전체') || (s.admissionYear === admissionYearVal);
+    // [2026-11-23] 학생 화면에서는 학년도 필터를 적용하지 않음 (자기 정보가 항상 보이도록)
+    const matchYear = (CURRENT_ROLE === '학생') || (admissionYearVal === '전체') || (s.admissionYear === admissionYearVal);
     // [2026-10-09] 학급 필터 ('미정'은 학급이 비어 있는 학생)
     const sClass = String(s.classGroup || '').trim();
     const matchClass = (classGroupVal === '전체') || (classGroupVal === '미정' ? sClass === '' : sClass === classGroupVal);
