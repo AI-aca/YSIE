@@ -1609,7 +1609,7 @@ function renderChecklistToHTML(jsonString) {
         </div>`;
       } else {
         exclusionsHTML = `<div style="background-color: #dcfce7; color: #166534; padding: 12px; margin-bottom: 15px; border-radius: 4px; font-weight: bold;">
-          🟢 0점 처리되는 외부 수상, 친인척 지위 등의 결격사항이 없습니다.
+          🟢 0점 처리되는 외부 수상, 친인척 지위, 대회 수상 등의 결격사항이 없습니다.
         </div>`;
       }
     }
