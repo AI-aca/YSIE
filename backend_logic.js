@@ -2,8 +2,24 @@
 const SUPABASE_URL = 'https://seuovjrvfcwvzphvvfga.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNldW92anJ2ZmN3dnpwaHZ2ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTA5NDMsImV4cCI6MjEwNDQyNjk0M30.a4HIZIRfL2ktUFjYmmaAeai7YblEg8U0ZDztsQmx3wA';
 
+// [2026-11-24] 보안: 학생은 자기 링크 자료만, 강사·관리자는 로그인 비밀번호 확인 후 전체 (DB 보안 규칙과 짝)
+//   모든 DB 요청에 학생 링크(x-student-link)와 로그인 비밀번호(x-staff-pw, base64)를 붙여 보낸다.
+function __whSecureFetch(input, init) {
+  init = init || {};
+  const h = new Headers(init.headers || (input && input.headers) || {});
+  try {
+    const pw = sessionStorage.getItem('user_pw') || '';
+    if (pw) h.set('x-staff-pw', btoa(unescape(encodeURIComponent(pw))));
+  } catch (e) {}
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const link = q.get('student') || q.get('id');
+    if (link) h.set('x-student-link', link);
+  } catch (e) {}
+  return fetch(input, Object.assign({}, init, { headers: h }));
+}
 if (typeof window !== 'undefined' && window.supabase && !window.supabaseClient) {
-  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: __whSecureFetch } });
 }
 
 // [2026-11-18] 지원학교 미정 학생용 기본 자소서 문항 (script.js에서도 window로 공용 사용)
