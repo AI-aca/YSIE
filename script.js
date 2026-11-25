@@ -4087,6 +4087,7 @@ function renderUserGuideContent() {
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>글자 수 체크:</strong> 편집기 하단의 글자 수는 <strong>지원 학교 기준(띄어쓰기 포함/제외)</strong>에 맞춰 실시간으로 자동 계산됩니다.</li>
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>수시 저장:</strong> 작성 중에는 반드시 <code>[저장하기]</code> 버튼을 눌러 내용을 안전하게 보관하세요.</li>
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>선생님 수정본 확인:</strong> 선생님이 자소서를 직접 고쳐 저장하면 [작성] 칸에 선생님이 고친 글이 보이고, 상단 <strong>과거 버전</strong> 목록에 <strong>· 선생님 저장</strong>으로 표시됩니다. 내가 전에 쓴 글도 과거 버전 목록에 그대로 남아 있어 언제든 다시 불러올 수 있습니다.</li>
+              <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>첨삭 색 표시:</strong> 선생님이 문장에 색(빨강·초록·파랑)과 메모를 달면 [작성] 칸 안에 색으로 보입니다. 색칠된 곳을 누르면 메모가 보이고, 오른쪽 <strong>[🖍 첨삭 메모]</strong> 탭에서 전체 목록을 볼 수 있습니다. 색은 표시일 뿐 글자와 글자 수는 바뀌지 않습니다.</li>
               <li style="font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>최종 제출 주의:</strong> <code>[최종 제출하기]</code>를 누르면 더 이상 수정할 수 없습니다. 수정을 원하실 경우 담당 선생님께 잠금 해제를 요청해야 합니다.</li>
             </ul>
           </div>
@@ -4139,7 +4140,9 @@ function renderUserGuideContent() {
               <li style="margin-bottom: 8px; font-size: 14px;">③ 지도 의견을 작성하고 화면 하단의 <code>[저장하기]</code> 버튼을 누르면 학생에게 즉시 연동됩니다. 또한 AI도움받기를 통해 <strong>&lt;각 문항별 피드백 도움&gt;</strong>을 받을 수 있습니다!</li>
               <li style="margin-bottom: 8px; font-size: 14px;">④ <strong>자소서 직접 수정:</strong> 선생님도 [작성] 칸의 학생 글을 직접 고칠 수 있습니다(학생이 최종 제출한 뒤에도 가능). <code>[저장하기]</code>를 누르면 고친 글이 최신본이 되고, 과거 버전 목록에 <strong>· 선생님 저장</strong>으로 표시됩니다. 학생이 전에 쓴 글은 과거 버전 목록에 그대로 남습니다.</li>
               <li style="margin-bottom: 8px; font-size: 14px;">⑤ <strong>덮어쓰기 경고:</strong> 창을 연 뒤에 학생이나 다른 선생님이 먼저 저장했다면 저장 전에 경고창이 뜹니다. [취소]를 누르고 창을 닫았다가 다시 열면 최신 글을 확인할 수 있습니다.</li>
-              <li style="font-size: 14px; color: #3b82f6;">⑥ 문항별 체크리스트 확인을 통해 자소서 각 문항별 결격 사유 등의 주요 포인트를 확인할 수 있습니다. 자소서가 어느정도 완성된 학생은 상시로 체크리스트 확인해 주세요. 이 체크리스트는 학생에게 즉시 연동됩니다.</li>
+              <li style="margin-bottom: 8px; font-size: 14px;">⑥ <strong>첨삭 색·메모:</strong> [작성] 칸에서 문장을 마우스로 드래그하면 색(빨강·초록·파랑)과 메모를 달 수 있습니다. 색의 뜻은 메모로 설명해 주세요. 오른쪽 <strong>[🖍 첨삭 메모]</strong> 탭에서 수정·삭제할 수 있고, 학생에게도 바로 보입니다(학생은 보기만 가능). 학생이 그 문장을 고치면 색은 사라지고 목록에 '원문 수정됨'으로 표시됩니다.</li>
+              <li style="margin-bottom: 8px; font-size: 14px;">⑦ <strong>AI 도움받기:</strong> 누르는 순간 [작성] 칸에 보이는 글로 피드백을 만듭니다. 이때 문항별 피드백은 자동 저장되지만, 선생님이 고친 자소서 글은 <code>[저장하기]</code>를 눌러야 저장됩니다.</li>
+              <li style="font-size: 14px; color: #3b82f6;">⑧ 문항별 체크리스트 확인을 통해 자소서 각 문항별 결격 사유 등의 주요 포인트를 확인할 수 있습니다. 자소서가 어느정도 완성된 학생은 상시로 체크리스트 확인해 주세요. 이 체크리스트는 학생에게 즉시 연동됩니다.</li>
             </ul>
           </div>
 
@@ -4158,7 +4161,7 @@ function renderUserGuideContent() {
         <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); padding: 25px; border-radius: 12px;">
           <h4 style="color: var(--color-danger); font-size: 18px; margin-bottom: 20px;"><i class="fa-solid fa-crown"></i> 최고 관리자 시스템 매뉴얼</h4>
           
-          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">관리자는 강사가 수행하는 모든 기능(문항별 피드백, 자소서 직접 수정, 합불 갱신 등)을 기본적으로 사용할 수 있으며, 아래와 같은 최고 권한 기능이 추가로 부여됩니다.</p>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">관리자는 강사가 수행하는 모든 기능(문항별 피드백, 자소서 직접 수정, 첨삭 색·메모, 합불 갱신 등)을 기본적으로 사용할 수 있으며, 아래와 같은 최고 권한 기능이 추가로 부여됩니다.</p>
 
           <div style="margin-bottom: 25px;">
             <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-chart-pie" style="color: var(--color-danger); margin-right: 8px;"></i> 1. 생기부 정밀 분석 (160점 만점) 열람</h5>
