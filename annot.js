@@ -333,6 +333,7 @@
     var st = document.createElement('style');
     st.textContent =
       '.annot-bd mark{color:transparent}' +
+      '#modal-ps-editor .char-counter{z-index:3}' + // [2026-11-25] 글자수 표시가 색칠 층에 가려지지 않게 맨 위로
       '#ps-annot-toolbar{position:fixed;z-index:10050;display:none;background:#0f172a;border:1px solid #facc15;border-radius:8px;padding:8px;box-shadow:0 6px 18px rgba(0,0,0,.5);width:280px;box-sizing:border-box}' +
       '#ps-annot-toolbar .annot-tb-title{font-size:12px;color:#fde68a;margin-bottom:6px;word-break:break-all}' +
       '#ps-annot-toolbar .annot-colors{display:flex;gap:8px;margin-bottom:6px}' +
