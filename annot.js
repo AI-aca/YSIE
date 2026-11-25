@@ -41,6 +41,14 @@
     return { label: school, q: q };
   }
   function currentText() {
+    // [수정] 첨삭 보기 중에는 입력칸을 숨기므로, 숨기기 전 상태(칸 나뉜 문항인지)를 기준으로 글을 읽음
+    var dyn = $('ps-dynamic-details-container');
+    if (state.mode === 'view' && state.savedDisplay && dyn) {
+      if (state.savedDisplay.dyn && state.savedDisplay.dyn !== 'none') {
+        return Array.prototype.map.call(dyn.querySelectorAll('.dynamic-ps-textarea'), function (ta) { return ta.value.trim(); }).join(SEP);
+      }
+      return $('ps-content-textarea') ? $('ps-content-textarea').value : '';
+    }
     try { return window.getCurrentPsText ? window.getCurrentPsText(false) : ($('ps-content-textarea') ? $('ps-content-textarea').value : ''); }
     catch (e) { return $('ps-content-textarea') ? $('ps-content-textarea').value : ''; }
   }
@@ -209,8 +217,10 @@
   function refreshAfterBind() {
     if (state.mode === 'view') {
       var area = $('ps-content-textarea'), dyn = $('ps-dynamic-details-container');
-      state.savedDisplay = { area: area.style.display === 'none' ? '' : area.style.display, dyn: dyn ? dyn.style.display : null };
-      if (dyn && dyn.style.display === 'none') state.savedDisplay.dyn = 'none';
+      // 문항을 바꾸면 기존 코드가 입력칸 표시를 새로 정함 → 그 상태를 다시 기억 (이력 선택처럼 표시가 안 바뀐 경우는 기존 기억 유지)
+      if (area.style.display !== 'none' || (dyn && dyn.style.display !== 'none')) {
+        state.savedDisplay = { area: area.style.display, dyn: dyn ? dyn.style.display : null };
+      }
       area.style.display = 'none'; if (dyn) dyn.style.display = 'none';
       renderView();
     }
