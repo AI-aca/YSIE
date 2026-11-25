@@ -957,7 +957,7 @@ function renderMainTable() {
       else if (col.key === 'psTeacherEdit') {
         // [2026-11-25] 선생님이 자소서를 저장한 횟수 (서버 시각 기준, 10초 안에 함께 저장된 것은 1회)
         const te = (window.PS_TEACHER_EDIT_MAP || {})[student.studentLink];
-        td.innerHTML = (te && te.count) ? `<span style="font-size: 12px; white-space: nowrap;">수정 ${te.count}회</span>` : '<span class="text-muted">-</span>';
+        td.innerHTML = (te && te.count) ? `<span style="white-space: nowrap;">수정 ${te.count}회</span>` : '<span class="text-muted">-</span>';
       }
       else if (col.key === 'psViewer') {
         td.innerHTML = `<button class="btn-action" style="padding: 4px 8px; font-size: 14px; background-color: var(--color-secondary);" onclick="window.openPsViewerModal('${student.studentLink}')"><i class="fa-solid fa-eye"></i> 자소서 뷰어</button>`;
