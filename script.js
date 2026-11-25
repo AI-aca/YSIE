@@ -4167,7 +4167,7 @@ function renderUserGuideContent() {
             <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-chart-pie" style="color: var(--color-danger); margin-right: 8px;"></i> 1. 생기부 정밀 분석 (160점 만점) 열람</h5>
             <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border-left: 3px solid var(--color-danger);">
               <p style="font-size: 14px; margin-bottom: 10px;">대시보드에서 <strong>생기부 점수</strong>를 클릭하면, 강사에게는 보이지 않는 <strong>영어/국어/사회 교과 및 출결, 동점자 컷오프(B 이하), 학폭 여부 등 상세 평가 결과와 AI 판단 근거</strong>가 기재된 정밀 모달창을 단독으로 열람할 수 있습니다.</p>
-              <p style="font-size: 14px; margin-bottom: 0; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 2학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</p>
+              <p style="font-size: 14px; margin-bottom: 0; color: #ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px;"></i> <strong>생기부 업로드 관련 유의사항:</strong> &lt;반드시 3학년 1학기까지의 교과성적 및 출결이 반영된 최종 생기부를 올리세요. 이 항목들이 누락된 경우 생기부 환산 점수의 정확도가 현저히 떨어집니다!&gt;</p>
             </div>
           </div>
 
