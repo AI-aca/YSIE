@@ -1341,6 +1341,7 @@ async function getPersonalStatementHistory(payload) {
         // 이전 스냅샷의 현재 상태를 깊은 복사하여 저장
         historyLogs.push({
           timestamp: s.updated_at,
+          writer: s.writer || '', // [2026-11-25] 이력에 '선생님 저장' 표시용
           type: '자소서', // 히스토리는 이제 무조건 자소서만 취급
           texts: JSON.parse(JSON.stringify(Object.values(currentStateMap)))
         });
@@ -1448,7 +1449,8 @@ async function savePersonalStatement(payload) {
             student_link: studentId,
             question_no: c.qNum,
             version_label: vLabel,
-            updated_at: now
+            updated_at: now,
+            writer: writer === '선생님' ? '선생님' : '학생' // [2026-11-25] 저장한 사람 기록
           };
         }
         newSnapshots[uniqueKey].content = c.text;

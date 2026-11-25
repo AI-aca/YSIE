@@ -1290,9 +1290,10 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
   const submitBtn = document.getElementById('btn-submit-ps-final');
   
   if (CURRENT_ROLE === '교사' || CURRENT_ROLE === '관리자') {
-    txtArea.readOnly = true;
-    saveBtn.style.display = 'inline-block'; // 피드백 일괄 저장 허용
-    saveBtn.textContent = '피드백 저장';
+    // [2026-11-25] 선생님·관리자도 자소서 글을 직접 수정 가능 (저장하면 이력에 '선생님 저장'으로 남고, 이전 학생 글도 이력에 그대로 남음)
+    txtArea.readOnly = false;
+    saveBtn.style.display = 'inline-block'; // 자소서·피드백 일괄 저장
+    saveBtn.textContent = '저장하기';
     submitBtn.style.display = 'none';
     alertBox.style.display = 'none';
     
@@ -1450,6 +1451,8 @@ async function openPersonalStatementModal(studentLink, initialTab = 'manual', ta
     
     // 글로벌에 데이터 홀드
     window.PS_CURRENT_HISTORY = historyData;
+    // [2026-11-25] 덮어쓰기 방지용: 이 창을 열 때 기준 최신 저장 시각
+    window.PS_LOADED_LATEST_TS = (historyData.history && historyData.history[0]) ? new Date(historyData.history[0].timestamp).getTime() : 0;
     window.PS_ORIGINAL_HISTORY_CURRENT = JSON.parse(JSON.stringify(historyData.current || []));
     
     // 타학교 미아 데이터 드롭다운 꼬리표 추가 (문항 번호순 정렬 보장)
@@ -1831,7 +1834,7 @@ function bindPersonalStatementToSelector(compositeQNum) {
       ta.className = 'form-control dynamic-ps-textarea';
       ta.style.cssText = `flex: 1; min-height: ${minH}px; resize: none; line-height: 1.5; padding: 12px; font-size: 14px; background: rgba(0,0,0,0.2); margin-bottom: 5px;`;
       ta.placeholder = "소문항 답변을 입력하세요...";
-      if (CURRENT_ROLE === '교사' || CURRENT_ROLE === '관리자' || locked) {
+      if (CURRENT_ROLE === '학생' && locked) { // [2026-11-25] 선생님·관리자는 칸 나뉜 문항도 수정 가능, 학생은 최종제출 시 잠금(기존과 동일)
         ta.readOnly = true;
       }
       ta.value = partVal;
@@ -1976,7 +1979,7 @@ function bindPersonalStatementToSelector(compositeQNum) {
         opt.value = textObj.text;
         opt.dataset.timestamp = h.timestamp; // (구버전 호환용)
         opt.dataset.record_id = textObj.id; // 삭제용 고유 ID
-        opt.textContent = formatTimestamp(h.timestamp);
+        opt.textContent = formatTimestamp(h.timestamp) + (h.writer === '선생님' ? ' · 선생님 저장' : ''); // [2026-11-25]
         opt.style.backgroundColor = '#1e293b';
         opt.style.color = '#f8fafc';
         historySelector.appendChild(opt);
@@ -3030,7 +3033,8 @@ function bindEventHandlers() {
         }
       }
       
-      const isChanged = (CURRENT_ROLE === '학생') ? (curr.text !== oldPs) : (curr.feedback !== oldFb);
+      // [2026-11-25] 선생님·관리자는 자소서 글 또는 피드백 중 하나라도 바뀌면 변경으로 봄 (학생은 기존과 동일)
+      const isChanged = (CURRENT_ROLE === '학생') ? (curr.text !== oldPs) : (curr.text !== oldPs || curr.feedback !== oldFb);
       const isEmpty = (CURRENT_ROLE === '학생') ? (curr.text.trim() === '') : (curr.feedback.trim() === '');
       
       // 스텔스 차단 방어벽: 드롭다운 화면에 없는 유령 데이터이면서, 내용 변경조차 없다면 팝업창에서 완벽히 숨김
@@ -3051,12 +3055,21 @@ function bindEventHandlers() {
           lineStr = `❌ ${displayName} : 내용이 빈 칸으로 수정됨 (저장 불가)\n`;
         }
       } else {
+        // [2026-11-25] 선생님·관리자: 자소서 글 수정(선생님 저장) + 피드백 저장
+        const psChanged = curr.text !== oldPs;
+        if (psChanged && curr.text.trim() !== '') {
+          lineStr += `✅ ${displayName} : 자소서 내용 수정됨 (선생님 저장)\n`;
+          contents.push({ qNum: curr.qNum, text: curr.text, type: '자소서', version_label: curr.version_label });
+          validSaveCount++;
+        } else if (psChanged) {
+          lineStr += `❌ ${displayName} : 자소서가 빈 칸으로 수정됨 (저장 불가)\n`;
+        }
         if (curr.feedback !== oldFb) {
-          lineStr = `✅ ${displayName} : 피드백 내용 수정됨 (저장 대기)\n`;
+          lineStr += `✅ ${displayName} : 피드백 내용 수정됨 (저장 대기)\n`;
           contents.push({ qNum: curr.qNum, text: curr.feedback, type: '피드백', version_label: curr.version_label });
           validSaveCount++;
-        } else {
-          lineStr = `➖ ${displayName} : 피드백 변경 없음 (기존 유지)\n`;
+        } else if (!psChanged) {
+          lineStr += `➖ ${displayName} : 변경 없음 (기존 유지)\n`;
         }
       }
       
@@ -3125,6 +3138,18 @@ function bindEventHandlers() {
       }
     }
 
+    // [2026-11-25] 덮어쓰기 방지: 이 창을 연 뒤 다른 사람(학생·선생님)이 먼저 자소서를 저장했으면 저장 전에 경고
+    if (!window._isSilentSave && contents.some(c => c.type === '자소서')) {
+      try {
+        const { data: latestRows, error: latestErr } = await window.supabaseClient.from('personal_statements').select('updated_at').eq('student_link', ACTIVE_PS_STUDENT).order('updated_at', { ascending: false }).limit(1);
+        if (latestErr) throw latestErr;
+        const latestTs = (latestRows && latestRows[0]) ? new Date(latestRows[0].updated_at).getTime() : 0;
+        if (latestTs > (window.PS_LOADED_LATEST_TS || 0)) {
+          if (!confirm('⚠️ 이 창을 연 뒤에 다른 사람(학생 또는 선생님)이 이 학생의 자소서를 먼저 저장했습니다.\n\n지금 저장하면 이 화면의 글이 최신본이 됩니다. (먼저 저장된 글은 과거 버전 목록에 남습니다)\n\n그래도 저장하시겠습니까?\n[취소]를 누르면 저장하지 않습니다. 창을 닫았다가 다시 열면 최신 글을 볼 수 있습니다.')) return;
+        }
+      } catch (e) { console.warn('최신 저장 시각 확인 실패 (저장은 계속 진행):', e); }
+    }
+
     const writerName = CURRENT_ROLE === '학생' ? '학생' : '선생님';
     
     try {
@@ -3153,6 +3178,7 @@ function bindEventHandlers() {
       // 방금 우리가 완벽하게 세팅하여 서버로 보낸 '현재 로컬 데이터'를 무조건 100% 신뢰하고 유지합니다.
       historyData.current = JSON.parse(JSON.stringify(hData.current));
       window.PS_CURRENT_HISTORY = historyData;
+      window.PS_LOADED_LATEST_TS = (historyData.history && historyData.history[0]) ? new Date(historyData.history[0].timestamp).getTime() : 0; // [2026-11-25]
       bindPersonalStatementToSelector(qNum);
       
     } catch (err) {
@@ -4050,6 +4076,7 @@ function renderUserGuideContent() {
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>학생 메모 활용:</strong> 작성창 우측 상단에 브레인스토밍이나 참고할 내용을 자유롭게 메모할 수 있습니다.</li>
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>글자 수 체크:</strong> 편집기 하단의 글자 수는 <strong>공백을 포함</strong>하여 실시간으로 계산됩니다.</li>
               <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>수시 저장:</strong> 작성 중에는 반드시 <code>[저장하기]</code> 버튼을 눌러 내용을 안전하게 보관하세요.</li>
+              <li style="margin-bottom: 10px; font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>선생님 수정본 확인:</strong> 선생님이 자소서를 직접 고쳐 저장하면 [작성] 칸에 선생님이 고친 글이 보이고, 상단 <strong>과거 버전</strong> 목록에 <strong>· 선생님 저장</strong>으로 표시됩니다. 내가 전에 쓴 글도 과거 버전 목록에 그대로 남아 있어 언제든 다시 불러올 수 있습니다.</li>
               <li style="font-size: 14px;"><i class="fa-solid fa-check" style="color: var(--color-primary); margin-right: 8px;"></i> <strong>최종 제출 주의:</strong> <code>[최종 제출하기]</code>를 누르면 더 이상 수정할 수 없습니다. 수정을 원하실 경우 담당 선생님께 잠금 해제를 요청해야 합니다.</li>
             </ul>
           </div>
@@ -4094,13 +4121,15 @@ function renderUserGuideContent() {
           </div>
 
           <div style="margin-bottom: 25px;">
-            <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-success); margin-right: 8px;"></i> 2. 자소서 수기 첨삭 지도</h5>
-            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 10px; margin-left: 5px;">학생의 자기소개서를 읽고 직접 첨삭 의견을 남겨 지도할 수 있습니다.</p>
+            <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-success); margin-right: 8px;"></i> 2. 자소서 첨삭 지도 및 직접 수정</h5>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 10px; margin-left: 5px;">학생의 자기소개서를 읽고 첨삭 의견을 남기거나, 글을 직접 고쳐 지도할 수 있습니다.</p>
             <ul style="list-style: none; padding: 0; margin: 0; margin-left: 5px;">
               <li style="margin-bottom: 8px; font-size: 14px;">① <strong>[자기소개서]</strong> 탭에서 첨삭할 학생 우측의 <code>[<i class="fa-solid fa-pen"></i> 자소서 첨삭]</code>(녹색 버튼)을 클릭합니다.</li>
               <li style="margin-bottom: 8px; font-size: 14px;">② 우측 화면 상단의 <strong>'문항별 피드백'</strong> 탭이 선택되어 있는지 확인합니다.</li>
-              <li style="margin-bottom: 8px; font-size: 14px;">③ 지도 의견을 작성하고 화면 하단의 <code>[피드백 저장]</code> 버튼을 누르면 학생에게 즉시 연동됩니다. 또한 AI도움받기를 통해 <strong>&lt;각 문항별 피드백 도움&gt;</strong>을 받을 수 있습니다!</li>
-              <li style="font-size: 14px; color: #3b82f6;">④ 문항별 체크리스트 확인을 통해 자소서 각 문항별 결격 사유 등의 주요 포인트를 확인할 수 있습니다. 자소서가 어느정도 완성된 학생은 상시로 체크리스트 확인해 주세요. 이 체크리스트는 학생에게 즉시 연동됩니다.</li>
+              <li style="margin-bottom: 8px; font-size: 14px;">③ 지도 의견을 작성하고 화면 하단의 <code>[저장하기]</code> 버튼을 누르면 학생에게 즉시 연동됩니다. 또한 AI도움받기를 통해 <strong>&lt;각 문항별 피드백 도움&gt;</strong>을 받을 수 있습니다!</li>
+              <li style="margin-bottom: 8px; font-size: 14px;">④ <strong>자소서 직접 수정:</strong> 선생님도 [작성] 칸의 학생 글을 직접 고칠 수 있습니다(학생이 최종 제출한 뒤에도 가능). <code>[저장하기]</code>를 누르면 고친 글이 최신본이 되고, 과거 버전 목록에 <strong>· 선생님 저장</strong>으로 표시됩니다. 학생이 전에 쓴 글은 과거 버전 목록에 그대로 남습니다.</li>
+              <li style="margin-bottom: 8px; font-size: 14px;">⑤ <strong>덮어쓰기 경고:</strong> 창을 연 뒤에 학생이나 다른 선생님이 먼저 저장했다면 저장 전에 경고창이 뜹니다. [취소]를 누르고 창을 닫았다가 다시 열면 최신 글을 확인할 수 있습니다.</li>
+              <li style="font-size: 14px; color: #3b82f6;">⑥ 문항별 체크리스트 확인을 통해 자소서 각 문항별 결격 사유 등의 주요 포인트를 확인할 수 있습니다. 자소서가 어느정도 완성된 학생은 상시로 체크리스트 확인해 주세요. 이 체크리스트는 학생에게 즉시 연동됩니다.</li>
             </ul>
           </div>
 
@@ -4119,7 +4148,7 @@ function renderUserGuideContent() {
         <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); padding: 25px; border-radius: 12px;">
           <h4 style="color: var(--color-danger); font-size: 18px; margin-bottom: 20px;"><i class="fa-solid fa-crown"></i> 최고 관리자 시스템 매뉴얼</h4>
           
-          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">관리자는 강사가 수행하는 모든 기능(문항별 피드백, 합불 갱신 등)을 기본적으로 사용할 수 있으며, 아래와 같은 최고 권한 기능이 추가로 부여됩니다.</p>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">관리자는 강사가 수행하는 모든 기능(문항별 피드백, 자소서 직접 수정, 합불 갱신 등)을 기본적으로 사용할 수 있으며, 아래와 같은 최고 권한 기능이 추가로 부여됩니다.</p>
 
           <div style="margin-bottom: 25px;">
             <h5 style="color: #fff; font-size: 15px; margin-bottom: 10px;"><i class="fa-solid fa-chart-pie" style="color: var(--color-danger); margin-right: 8px;"></i> 1. 생기부 정밀 분석 (160점 만점) 열람</h5>
