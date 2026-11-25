@@ -957,6 +957,8 @@
   <!-- script.js 프론트엔드 액션 제어 스크립트 연결 (캐시 원천 차단) -->
   <script>
     document.write('<script src="script.js?v=' + new Date().getTime() + '"></scr' + 'ipt>');
+    // [2026-11-25] 자소서 첨삭 표시(색·메모) 기능 — 기존 기능과 분리된 별도 파일
+    document.write('<script src="annot.js?v=' + new Date().getTime() + '"></scr' + 'ipt>');
   </script>
 </body>
 </html>
