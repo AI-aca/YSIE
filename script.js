@@ -2990,6 +2990,8 @@ function bindEventHandlers() {
   
     // 자소서 및 피드백 실시간 저장 버튼 연동 (Dirty Check 보완 및 일괄 저장)
   document.getElementById('btn-save-ps').onclick = async () => {
+    // [2026-11-25] AI 도움받기 전 자동 저장(선생님·관리자)인지 클릭 즉시 기억 → 이때는 선생님이 고친 자소서 글은 저장하지 않음
+    const silentStaffSave = !!window._isSilentSave && CURRENT_ROLE !== '학생';
     if (!ACTIVE_PS_STUDENT) return;
     
     const hData = window.PS_CURRENT_HISTORY;
@@ -3056,7 +3058,7 @@ function bindEventHandlers() {
         }
       } else {
         // [2026-11-25] 선생님·관리자: 자소서 글 수정(선생님 저장) + 피드백 저장
-        const psChanged = curr.text !== oldPs;
+        const psChanged = curr.text !== oldPs && !silentStaffSave; // [2026-11-25] AI 도움받기 자동 저장 때는 자소서 글 제외
         if (psChanged && curr.text.trim() !== '') {
           lineStr += `✅ ${displayName} : 자소서 내용 수정됨 (선생님 저장)\n`;
           contents.push({ qNum: curr.qNum, text: curr.text, type: '자소서', version_label: curr.version_label });
@@ -3166,6 +3168,14 @@ function bindEventHandlers() {
       // 저장 성공 시, 현재 상태를 다시 원본으로 갱신
       window.PS_ORIGINAL_HISTORY_CURRENT = JSON.parse(JSON.stringify(hData.current));
       isPsDirty = false;
+      // [2026-11-25] 자동 저장 때 저장하지 않은 선생님 수정 글은 '아직 저장 안 됨'으로 유지 → 나중에 [저장하기]를 누르면 저장 대상이 됨
+      if (silentStaffSave) {
+        window.PS_ORIGINAL_HISTORY_CURRENT.forEach(c => {
+          const o = origData.find(x => x.qNum === c.qNum && x.version_label === c.version_label);
+          const prevText = o ? o.text : '';
+          if (c.text !== prevText) { c.text = prevText; isPsDirty = true; }
+        });
+      }
       
       // 이력 갱신
       const reqPw = sessionStorage.getItem('user_pw') || '';
