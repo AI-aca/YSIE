@@ -69,6 +69,17 @@
     var k = currentKey(); if (!k) return [];
     return state.all.filter(function (a) { return nq(a.question_no) === nq(k.q) && String(a.version_label || '').trim() === k.label; });
   }
+  // [2026-11-25] 지금 문항의 글이 마지막 저장본과 다른지 (선생님이 고치고 아직 [저장하기]를 안 누른 상태)
+  function hasUnsavedText() {
+    var h = window.PS_CURRENT_HISTORY, o = window.PS_ORIGINAL_HISTORY_CURRENT, k = currentKey();
+    if (!h || !h.current || !o || !k) return false;
+    var nameEl = $('ps-school-name'); var ui = nameEl ? nameEl.textContent.replace('지원 학교: ', '').trim() : '';
+    var c = h.current.find(function (x) { var cv = String(x.version_label || '').trim(); return nq(x.qNum) === nq(k.q) && (cv === k.label || (!cv && k.label === ui)); });
+    if (!c) return false;
+    var orig = o.find(function (x) { return x.qNum === c.qNum && x.version_label === c.version_label; });
+    var cur = window.getCurrentPsText ? window.getCurrentPsText(false) : fullText();
+    return cur !== (orig ? orig.text : '');
+  }
   // 색칠 위치·번호 (앞에서부터 1,2,3…, 원문이 바뀐 것은 뒤로)
   function layout(text) {
     var items = itemsForCurrent().map(function (a) { var s = nthIndex(text, a.quote, a.occurrence || 0); return { a: a, s: s, e: s >= 0 ? s + a.quote.length : -1 }; });
@@ -212,13 +223,25 @@
     var memo = ($('annot-memo-input') ? $('annot-memo-input').value : '').slice(0, 2000);
     var btn = $('annot-tb-save'); if (btn) { btn.disabled = true; btn.textContent = '저장 중…'; }
     var wasEdit = !!state.editingId;
+    // [2026-11-25] 누른 순간의 선택 문장·문항을 먼저 기억 (아래에서 자소서를 저장하는 동안 화면이 다시 그려져도 그대로 사용)
+    var editId = state.editingId, p = state.pending, k = currentKey();
     try {
-      if (state.editingId) {
-        var r1 = await window.supabaseClient.from(TABLE).update({ color: color, memo: memo, updated_at: new Date().toISOString() }).eq('id', state.editingId).select('id');
+      // [2026-11-25] 선생님이 자소서를 고치고 아직 저장하지 않았으면, 고친 글도 함께 저장할지 물음 (기존 [저장하기] 버튼을 그대로 눌러 줌)
+      if (!wasEdit && hasUnsavedText()) {
+        if (confirm('고친 자소서도 지금 함께 저장할까요?\n\n[확인] 고친 글을 먼저 저장한 뒤 색을 저장합니다. (저장 확인창이 한 번 더 뜹니다)\n[취소] 색만 저장합니다. 고친 부분의 색은 글을 저장해야 학생에게 보입니다.')) {
+          var sb = $('btn-save-ps');
+          if (sb && typeof sb.onclick === 'function') { await sb.onclick(); }
+          if (hasUnsavedText()) { // 저장 확인창에서 취소했거나 저장하지 못함 → 색도 저장하지 않고 멈춤
+            if (btn) { btn.disabled = false; btn.textContent = '바로 저장'; }
+            return;
+          }
+        }
+      }
+      if (editId) {
+        var r1 = await window.supabaseClient.from(TABLE).update({ color: color, memo: memo, updated_at: new Date().toISOString() }).eq('id', editId).select('id');
         if (r1.error) throw r1.error;
         if (!r1.data || !r1.data.length) throw new Error('권한이 없거나 이미 삭제된 첨삭입니다. 다시 로그인한 뒤 시도해 주세요.');
       } else {
-        var k = currentKey(); var p = state.pending;
         if (!k || !p) throw new Error('선택한 문장을 찾지 못했습니다. 다시 드래그해 주세요.');
         var row = { student_link: studentLink(), version_label: k.label, question_no: k.q, quote: p.quote, occurrence: p.occurrence, color: color, memo: memo, created_by: (typeof CURRENT_ROLE !== 'undefined' ? CURRENT_ROLE : '') };
         var r2 = await window.supabaseClient.from(TABLE).insert(row).select('id');
