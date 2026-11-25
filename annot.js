@@ -184,7 +184,7 @@
         return '<button type="button" class="annot-color' + (k === color ? ' sel' : '') + '" data-color="' + k + '" style="background:' + COLORS[k].line + '"></button>';
       }).join('') + '</div>' +
       '<textarea id="annot-memo-input" placeholder="메모 (비워도 됩니다)">' + esc(memo || '') + '</textarea>' +
-      '<div class="annot-tb-btns"><button type="button" class="annot-tb" id="annot-tb-cancel">취소</button><button type="button" class="annot-tb annot-tb-save" id="annot-tb-save">저장</button></div>';
+      '<div class="annot-tb-btns"><button type="button" class="annot-tb" id="annot-tb-cancel">취소</button><button type="button" class="annot-tb annot-tb-save" id="annot-tb-save">바로 저장</button></div>';
     tb.setAttribute('data-color', color);
     tb.style.display = 'block';
     var w = 280, h = tb.offsetHeight || 150;
@@ -197,11 +197,21 @@
     $('annot-tb-cancel').addEventListener('click', hideToolbar);
     $('annot-tb-save').addEventListener('click', saveToolbar);
   }
+  // 첨삭 저장·수정·삭제 후 잠깐 보이는 알림 (아래 [저장하기]와 별개로 바로 저장되었음을 알림)
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('ps-annot-toast');
+    if (!el) { el = document.createElement('div'); el.id = 'ps-annot-toast'; document.body.appendChild(el); }
+    el.textContent = msg; el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1800);
+  }
   function hideToolbar() { var tb = $('ps-annot-toolbar'); if (tb) { tb.style.display = 'none'; tb.innerHTML = ''; } state.pending = null; state.editingId = null; }
   async function saveToolbar() {
     var tb = $('ps-annot-toolbar'); var color = tb.getAttribute('data-color') || 'red';
     var memo = ($('annot-memo-input') ? $('annot-memo-input').value : '').slice(0, 2000);
     var btn = $('annot-tb-save'); if (btn) { btn.disabled = true; btn.textContent = '저장 중…'; }
+    var wasEdit = !!state.editingId;
     try {
       if (state.editingId) {
         var r1 = await window.supabaseClient.from(TABLE).update({ color: color, memo: memo, updated_at: new Date().toISOString() }).eq('id', state.editingId).select('id');
@@ -215,16 +225,18 @@
         if (r2.error) throw r2.error;
       }
       hideToolbar();
+      toast(wasEdit ? '✓ 첨삭 수정됨 (자동 저장)' : '✓ 첨삭 저장됨 (자동 저장)');
       await load(true); render(); renderList();
     } catch (err) {
       alert('첨삭 저장 실패: ' + ((err && err.message) || err));
-      if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+      if (btn) { btn.disabled = false; btn.textContent = '바로 저장'; }
     }
   }
   async function removeItem(id) {
     if (!confirm('이 첨삭(색·메모)을 삭제할까요? 학생 글은 바뀌지 않습니다.')) return;
     var r = await window.supabaseClient.from(TABLE).delete().eq('id', id).select('id');
     if (r.error || !r.data || !r.data.length) { alert('삭제 실패: ' + ((r.error && r.error.message) || '권한이 없거나 이미 삭제되었습니다.')); return; }
+    toast('✓ 첨삭 삭제됨');
     await load(true); render(); renderList();
   }
 
@@ -317,6 +329,8 @@
       '#annot-list .annot-actions{flex-shrink:0;display:flex;gap:4px}' +
       '#annot-list .annot-actions button{border:1px solid var(--border-color);background:transparent;color:var(--text-muted);border-radius:5px;padding:0 6px;font-size:11.5px;line-height:18px;cursor:pointer}' +
       '#annot-list .annot-tag{display:inline-block;font-size:10.5px;padding:0 5px;border-radius:7px;margin-left:6px;background:#b45309;color:#fff;vertical-align:1px}' +
+      '#ps-annot-toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(10px);z-index:10060;background:#0f766e;color:#fff;font-size:14px;font-weight:600;padding:9px 18px;border-radius:20px;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}' +
+      '#ps-annot-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}' +
       '#annot-list .annot-empty{font-size:13.5px;color:var(--text-muted);padding:8px 2px;line-height:1.6}';
     document.head.appendChild(st);
     var tb = document.createElement('div'); tb.id = 'ps-annot-toolbar'; document.body.appendChild(tb);
