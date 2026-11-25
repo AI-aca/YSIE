@@ -560,7 +560,8 @@ const TABLE_COLUMNS = {
     { label: '최종여부', key: 'psStatus' },
     { label: '글자수 현황', key: 'psProgress' },
     { label: '자소서 뷰어', key: 'psViewer' },
-    { label: '관리', key: 'manage' }
+    { label: '관리', key: 'manage' },
+    { label: '선생님 수정', key: 'psTeacherEdit' } // [2026-11-25] 선생님 자소서 저장 횟수 (선생님·관리자만)
   ],
   interview: [
     { label: '학년도', key: 'admissionYear' },
@@ -676,6 +677,7 @@ function renderMainTable() {
   // 학생인 경우 자소서 피드백(AI) 열 숨김
   if (CURRENT_MENU === 'ps' && CURRENT_ROLE === '학생') {
     cols = cols.filter(c => c.key !== 'psFeedback');
+    cols = cols.filter(c => c.key !== 'psTeacherEdit'); // [2026-11-25] 학생 화면에는 '선생님 수정' 열 없음
   }
   
   if (CURRENT_ROLE === '학생' && CURRENT_MENU === 'interview') {
@@ -951,6 +953,11 @@ function renderMainTable() {
             </div>
           `;
         }
+      }
+      else if (col.key === 'psTeacherEdit') {
+        // [2026-11-25] 선생님이 자소서를 저장한 횟수 (서버 시각 기준, 10초 안에 함께 저장된 것은 1회)
+        const te = (window.PS_TEACHER_EDIT_MAP || {})[student.studentLink];
+        td.innerHTML = (te && te.count) ? `<span style="font-size: 12px; white-space: nowrap;">수정 ${te.count}회</span>` : '<span class="text-muted">-</span>';
       }
       else if (col.key === 'psViewer') {
         td.innerHTML = `<button class="btn-action" style="padding: 4px 8px; font-size: 14px; background-color: var(--color-secondary);" onclick="window.openPsViewerModal('${student.studentLink}')"><i class="fa-solid fa-eye"></i> 자소서 뷰어</button>`;

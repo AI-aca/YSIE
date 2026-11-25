@@ -2013,7 +2013,7 @@ async function getAllPsProgress() {
     while (true) {
       const { data: statements, error } = await window.supabaseClient
         .from('personal_statements')
-        .select('student_link, question_no, content, updated_at, version_label') // version_label 추가
+        .select('student_link, question_no, content, updated_at, version_label, writer') // version_label 추가, [2026-11-25] writer(저장한 사람) 추가
         .order('updated_at', { ascending: true })
         .range(from, from + pageSize - 1);
         
@@ -2043,6 +2043,22 @@ async function getAllPsProgress() {
         };
       }
     });
+    // [2026-11-25] 학생별 선생님 자소서 저장 횟수: [저장하기] 한 번에 여러 문항이 저장되면 서버 시각이 조금씩 달라지므로 10초 안에 이어진 저장은 1회로 셈
+    const teacherTimes = {};
+    allStatements.forEach(row => {
+      if (row.writer !== '선생님') return;
+      const ts = new Date(row.updated_at).getTime();
+      if (!ts) return;
+      (teacherTimes[row.student_link] = teacherTimes[row.student_link] || []).push(ts);
+    });
+    const teacherEditMap = {};
+    Object.keys(teacherTimes).forEach(link => {
+      const arr = teacherTimes[link].sort((x, y) => x - y);
+      let count = 0, prev = -Infinity;
+      arr.forEach(ts => { if (ts - prev > 10000) count++; prev = ts; });
+      teacherEditMap[link] = { count: count };
+    });
+    window.PS_TEACHER_EDIT_MAP = teacherEditMap;
     return progressMap;
   } catch (err) {
     console.error('getAllPsProgress error:', err);
